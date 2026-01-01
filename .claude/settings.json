@@ -5,7 +5,19 @@
   },
   "permissions": {
     "allow": [
-      "WebFetch"
+      "WebFetch",
+      "WebSearch",
+      "mcp__aws-knowledge__*",
+      "mcp__context7__*",
+      "mcp__strands__*",
+      "mcp__cdk-mcp-server__*",
+      "mcp__github__get_*",
+      "mcp__github__list_*",
+      "mcp__github__search_*",
+      "mcp__chrome-devtools__list_*",
+      "mcp__chrome-devtools__take_snapshot",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_console_messages"
     ]
   },
   "hooks": {
