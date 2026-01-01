@@ -1,0 +1,103 @@
+{
+  "mcpServers": {
+    "strands": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "strands-agents-mcp-server"
+      ],
+      "env": {}
+    },
+    "aws-knowledge": {
+      "type": "http",
+      "url": "https://knowledge-mcp.global.api.aws"
+    },
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "@playwright/mcp@latest"
+      ],
+      "env": {}
+    },
+    "cdk-mcp-server": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "awslabs.cdk-mcp-server@latest"
+      ],
+      "env": {}
+    },
+    "aws-api-mcp-server": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "--with",
+        "botocore[crt]",
+        "awslabs.aws-api-mcp-server@latest"
+      ],
+      "env": {}
+    },
+    "chrome-devtools": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@latest"
+      ],
+      "env": {}
+    },
+    "context7": {
+      "type": "http",
+      "url": "https://context7.liam.sh/mcp"
+    },
+    "github": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "<YOUR_GITHUB_PAT_HERE>"
+      }
+    }
+  },
+  "user": {
+    "mcpServers": {
+      "aws-api-mcp-server": {
+        "type": "stdio",
+        "command": "uvx",
+        "args": [
+          "--with",
+          "botocore[crt]",
+          "awslabs.aws-api-mcp-server@latest"
+        ],
+        "env": {
+          "AWS_REGION": "us-east-1"
+        }
+      },
+      "aws-knowledge": {
+        "type": "http",
+        "url": "https://knowledge-mcp.global.api.aws",
+        "autoApprove": [
+          "*"
+        ]
+      },
+      "strands": {
+        "type": "stdio",
+        "command": "uvx",
+        "args": [
+          "strands-agents-mcp-server"
+        ],
+        "autoApprove": [
+          "*"
+        ]
+      }
+    }
+  },
+  "toolAutoApprove": [
+    "WebSearch",
+    "WebFetch"
+  ]
+}
