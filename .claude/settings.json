@@ -5,20 +5,40 @@
   },
   "permissions": {
     "allow": [
-      "WebFetch",
       "WebSearch",
+      "WebFetch",
+      "Read",
+      "Glob",
+      "Grep",
+      "LSP",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(find:*)",
+      "Bash(which:*)",
+      "Bash(pwd:*)",
+      "Bash(tree:*)",
+      "Bash(wc:*)",
+      "Bash(file:*)",
+      "Bash(stat:*)",
+      "Bash(echo:*)",
+      "Bash(gh:*)",
+      "Bash(aws:*)",
       "mcp__aws-knowledge__*",
       "mcp__context7__*",
       "mcp__strands__*",
-      "mcp__cdk-mcp-server__*",
+      "mcp__bedrock-agentcore-mcp-server__*",
       "mcp__github__get_*",
       "mcp__github__list_*",
       "mcp__github__search_*",
       "mcp__chrome-devtools__list_*",
       "mcp__chrome-devtools__take_snapshot",
       "mcp__playwright__browser_snapshot",
-      "mcp__playwright__browser_console_messages"
-    ]
+      "mcp__playwright__browser_console_messages",
+      "mcp__cdk-mcp-server__*"
+    ],
+    "defaultMode": "default"
   },
   "hooks": {
     "PermissionRequest": [
