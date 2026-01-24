@@ -2,24 +2,23 @@
 
 Claude Code（Anthropic公式CLI）の個人設定ファイル集。
 
+複数PCで共通利用する設定のみを管理します。機密情報を含まず、パブリック公開しても問題ない内容のみを扱います。
+
 ## 構成
 
 ```
 .claude/
-├── CLAUDE.md      # グローバル設定（基本方針、AWS設定など）
-├── settings.json  # Claude Codeの設定
-├── skills/        # カスタムスキル
-└── ...
-
-rules/             # プロジェクト横断のナレッジベース
-├── aws-learnings.md       # AWS関連の学び
-├── llm-app-patterns.md    # LLMアプリ開発パターン
-└── troubleshooting.md     # トラブルシューティング集
+├── CLAUDE.md          # グローバル設定（基本方針、AWS設定など）
+├── settings.json      # Claude Codeの設定
+├── statusline.sh      # ステータスライン設定
+├── agents/            # カスタムエージェント
+├── rules/             # プロジェクト横断のナレッジベース
+└── skills/            # カスタムスキル
 ```
 
 ## 使い方
 
-`~/.claude/` に配置して使用。このリポジトリは公開用テンプレートのため、実際の運用ファイルとは別管理。
+`~/.claude/` に配置して使用。`/sync-settings` スキルで同期可能。
 
 ## 参考
 
