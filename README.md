@@ -24,3 +24,4 @@ rules/             # プロジェクト横断のナレッジベース
 ## 参考
 
 - [Claude Code公式ドキュメント](https://docs.anthropic.com/en/docs/claude-code)
+- [Claude Code ライトユーザー向け便利設定ガイド](https://qiita.com/minorun365/items/3711c0de2e2558adb7c8) - このリポジトリの解説記事
