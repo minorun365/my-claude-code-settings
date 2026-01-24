@@ -61,6 +61,8 @@ POST https://bedrock-agentcore.{region}.amazonaws.com/runtimes/{URLエンコー�
 
 ```
 data: {"type": "text", "data": "テキストチャンク"}
+data: {"type": "tool_use", "data": "ツール名"}
+data: {"type": "markdown", "data": "生成されたコンテンツ"}
 data: {"type": "error", "error": "エラーメッセージ"}
 data: [DONE]
 ```
@@ -70,6 +72,51 @@ data: [DONE]
 ```typescript
 const textValue = event.content || event.data;
 ```
+
+## 環境変数
+
+### Runtimeへの環境変数渡し
+
+```typescript
+const runtime = new agentcore.Runtime(stack, 'MyRuntime', {
+  runtimeName: 'my-agent',
+  agentRuntimeArtifact: artifact,
+  environmentVariables: {
+    TAVILY_API_KEY: process.env.TAVILY_API_KEY || '',
+    OTHER_SECRET: process.env.OTHER_SECRET || '',
+  },
+});
+```
+
+sandbox起動時に環境変数を設定する必要がある：
+```bash
+export TAVILY_API_KEY=$(grep TAVILY_API_KEY .env | cut -d= -f2) && npx ampx sandbox
+```
+
+または`dotenv`を使用：
+```typescript
+// amplify/backend.ts
+import 'dotenv/config';
+```
+
+## CDK Hotswap
+
+CDK v1.14.0 以降で AgentCore Runtime の Hotswap に対応。コンテナイメージの変更時に高速デプロイが可能。
+
+### Amplify での利用
+
+Amplify toolkit-lib がまだ対応バージョンに更新されていない場合、`package.json` の `overrides` で先行利用可能：
+
+```json
+{
+  "overrides": {
+    "@aws-cdk/toolkit-lib": "1.14.0",
+    "@smithy/core": "^3.21.0"
+  }
+}
+```
+
+詳細は `amplify-cdk.md` を参照。
 
 ## CDK（@aws-cdk/aws-bedrock-agentcore-alpha）
 

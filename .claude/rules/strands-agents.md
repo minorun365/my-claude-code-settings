@@ -172,9 +172,106 @@ if __name__ == "__main__":
 # requirements.txt
 bedrock-agentcore
 strands-agents
+tavily-python  # Web検索が必要な場合
 ```
 
 **注意**: fastapi/uvicorn は不要（bedrock-agentcore SDKに内包）
+
+### セッションIDでAgentを管理（複数ユーザー対応）
+
+AgentCoreで複数ユーザーの会話履歴を保持する場合、セッションIDごとにAgentインスタンスを管理する：
+
+```python
+from strands import Agent
+
+# セッションごとのAgentインスタンスを管理
+_agent_sessions: dict[str, Agent] = {}
+
+def get_or_create_agent(session_id: str | None) -> Agent:
+    """セッションIDに対応するAgentを取得または作成"""
+    # セッションIDがない場合は新規Agentを作成（履歴なし）
+    if not session_id:
+        return Agent(
+            model="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            system_prompt="...",
+            tools=[...],
+        )
+
+    # 既存のセッションがあればそのAgentを返す
+    if session_id in _agent_sessions:
+        return _agent_sessions[session_id]
+
+    # 新規セッションの場合はAgentを作成して保存
+    agent = Agent(
+        model="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        system_prompt="...",
+        tools=[...],
+    )
+    _agent_sessions[session_id] = agent
+    return agent
+
+@app.entrypoint
+async def invoke(payload):
+    session_id = payload.get("session_id")
+    agent = get_or_create_agent(session_id)
+    # ...
+```
+
+**注意**: コンテナ再起動でセッションは消える（メモリ管理）。永続化が必要な場合はDynamoDB等を検討。
+
+## ツール駆動型の出力パターン
+
+LLMの出力をフロントエンドでフィルタリングするのが難しい場合、出力専用のツールを作成してツール経由で出力させる方式が有効。
+
+### 例：マークダウン出力ツール
+```python
+# グローバル変数で出力を保持
+_generated_markdown: str | None = None
+
+@tool
+def output_slide(markdown: str) -> str:
+    """生成したスライドのマークダウンを出力します。
+
+    Args:
+        markdown: Marp形式のマークダウン全文
+
+    Returns:
+        出力完了メッセージ
+    """
+    global _generated_markdown
+    _generated_markdown = markdown
+    return "スライドを出力しました。"
+
+agent = Agent(
+    model="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    system_prompt="スライドを作成したら、必ず output_slide ツールを使って出力してください。",
+    tools=[output_slide],
+)
+```
+
+### AgentCoreでのツール使用イベント送信
+```python
+@app.entrypoint
+async def invoke(payload):
+    global _generated_markdown
+    _generated_markdown = None
+
+    stream = agent.stream_async(payload.get("prompt", ""))
+    async for event in stream:
+        if "data" in event:
+            yield {"type": "text", "data": event["data"]}
+        elif "current_tool_use" in event:
+            tool_name = event["current_tool_use"].get("name", "unknown")
+            yield {"type": "tool_use", "data": tool_name}
+
+    if _generated_markdown:
+        yield {"type": "markdown", "data": _generated_markdown}
+```
+
+**メリット**:
+- フロントエンドでのテキスト除去処理が不要
+- ツール使用中のステータス表示が容易
+- マークダウンがテキストストリームに混入しない
 
 ## システムプロンプト設計
 

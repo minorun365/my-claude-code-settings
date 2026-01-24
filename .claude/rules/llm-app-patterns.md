@@ -88,13 +88,57 @@ function handleEvent(event) {
     case 'text':
       onText(textValue);
       break;
+    case 'tool_use':
+      onToolUse(textValue);  // ツール名が返る
+      break;
+    case 'markdown':
+      onMarkdown(textValue);
+      break;
     case 'error':
       onError(new Error(event.error || event.message || textValue));
       break;
-    // ...
   }
 }
 ```
+
+## ツール駆動型の出力パターン
+
+LLMが生成したコンテンツ（マークダウン等）をテキストストリームに直接出力すると、フロントエンドでの除去処理が複雑になる。出力専用のツールを作成し、ツール経由で出力させる方式が有効。
+
+### バックエンド（Python）
+```python
+@tool
+def output_content(content: str) -> str:
+    """生成したコンテンツを出力します。"""
+    global _generated_content
+    _generated_content = content
+    return "出力完了"
+```
+
+### フロントエンド（ステータス表示）
+```typescript
+onToolUse: (toolName) => {
+  if (toolName === 'output_content') {
+    setMessages(prev => [
+      ...prev,
+      { role: 'assistant', isStatus: true, statusText: 'コンテンツを生成中...' }
+    ]);
+  }
+},
+onMarkdown: (content) => {
+  // ステータスを完了に更新
+  setMessages(prev =>
+    prev.map(msg =>
+      msg.isStatus ? { ...msg, statusText: '生成完了' } : msg
+    )
+  );
+}
+```
+
+**メリット**:
+- テキストストリームにコンテンツが混入しない
+- ツール使用中のステータス表示が容易
+- フロントエンドのフィルタリング処理が不要
 
 ## エラーハンドリング
 
@@ -144,4 +188,93 @@ export async function invokeAgentMock(prompt, callbacks) {
 ```typescript
 const useMock = import.meta.env.VITE_USE_MOCK === 'true';
 const invoke = useMock ? invokeAgentMock : invokeAgent;
+```
+
+## PDF生成（AgentCore経由）
+
+### バックエンド（Python）
+```python
+import base64
+import subprocess
+import tempfile
+from pathlib import Path
+
+def generate_pdf(markdown: str) -> bytes:
+    """Marp CLIでPDFを生成"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        md_path = Path(tmpdir) / "slide.md"
+        pdf_path = Path(tmpdir) / "slide.pdf"
+
+        md_path.write_text(markdown, encoding="utf-8")
+
+        result = subprocess.run(
+            ["marp", str(md_path), "--pdf", "-o", str(pdf_path)],
+            capture_output=True,
+            text=True,
+        )
+
+        if result.returncode != 0:
+            raise RuntimeError(f"Marp CLI error: {result.stderr}")
+
+        return pdf_path.read_bytes()
+
+@app.entrypoint
+async def invoke(payload):
+    if payload.get("action") == "export_pdf":
+        markdown = payload.get("markdown", "")
+        pdf_bytes = generate_pdf(markdown)
+        pdf_base64 = base64.b64encode(pdf_bytes).decode("utf-8")
+        yield {"type": "pdf", "data": pdf_base64}
+        return
+    # 通常のチャット処理...
+```
+
+### フロントエンド（Base64デコード・ダウンロード）
+```typescript
+export async function exportPdf(markdown: string): Promise<Blob> {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { /* 認証ヘッダー等 */ },
+    body: JSON.stringify({ action: 'export_pdf', markdown }),
+  });
+
+  // SSEレスポンスからPDFイベントを取得
+  const reader = response.body?.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        const event = JSON.parse(line.slice(6));
+        if (event.type === 'pdf' && event.data) {
+          // Base64デコードしてBlobを返す
+          const binaryString = atob(event.data);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          return new Blob([bytes], { type: 'application/pdf' });
+        }
+      }
+    }
+  }
+  throw new Error('PDF生成に失敗しました');
+}
+
+// ダウンロード処理
+const blob = await exportPdf(markdown);
+const url = URL.createObjectURL(blob);
+const a = document.createElement('a');
+a.href = url;
+a.download = 'slide.pdf';
+a.click();
+URL.revokeObjectURL(url);
 ```

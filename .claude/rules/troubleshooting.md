@@ -41,6 +41,50 @@ resources: [
 
 **解決策**: `npx ampx sandbox` を実行
 
+### Amplify Console: CDK failed to publish assets
+
+**症状**: `[CDKAssetPublishError] CDK failed to publish assets`
+
+**原因**: サービスロールの権限不足（デフォルトで作成される`AmplifySSRLoggingRole`はロギング専用）
+
+**解決策**: 適切な権限を持つサービスロールを作成・設定
+
+```bash
+# 1. サービスロールを作成
+aws iam create-role \
+  --role-name AmplifyServiceRole-myapp \
+  --assume-role-policy-document '{
+    "Version": "2012-10-17",
+    "Statement": [{
+      "Effect": "Allow",
+      "Principal": {"Service": "amplify.amazonaws.com"},
+      "Action": "sts:AssumeRole"
+    }]
+  }'
+
+# 2. AdministratorAccess-Amplifyポリシーをアタッチ
+aws iam attach-role-policy \
+  --role-name AmplifyServiceRole-myapp \
+  --policy-arn arn:aws:iam::aws:policy/AdministratorAccess-Amplify
+
+# 3. Amplifyアプリに設定
+aws amplify update-app \
+  --app-id YOUR_APP_ID \
+  --iam-service-role-arn arn:aws:iam::ACCOUNT_ID:role/AmplifyServiceRole-myapp
+```
+
+### Amplify Console: Dockerビルドができない
+
+**症状**: `Unable to execute 'docker' in order to build a container asset`
+
+**原因**: デフォルトビルドイメージにDockerが含まれていない
+
+**解決策**: カスタムビルドイメージを設定
+
+1. Amplify Console → Build settings → Build image settings → Edit
+2. Build image → Custom Build Image を選択
+3. イメージ名: `public.ecr.aws/codebuild/amazonlinux-x86_64-standard:5.0`
+
 ## フロントエンド関連
 
 ### React StrictMode: 文字がダブって表示される
@@ -129,6 +173,118 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ```
 
+### Marp CLI: PDF日本語文字化け（豆腐文字）
+
+**症状**: PDFをダウンロードすると日本語が□（豆腐）で表示される
+
+**原因**: Dockerコンテナに日本語フォントがない
+
+**解決策**: Dockerfileに日本語フォントを追加
+```dockerfile
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    chromium \
+    fonts-noto-cjk \
+    && rm -rf /var/lib/apt/lists/* \
+    && fc-cache -fv
+```
+
+**補足**: `fonts-noto-cjk`はNoto Sans CJK（中国語・日本語・韓国語）フォントを含む
+
+## LLMアプリ関連
+
+### ストリーミング中のコードブロック除去が困難
+
+**症状**: LLMがマークダウンをテキストとして出力すると、チャンク単位で```の検出が難しい
+
+**原因**: SSEイベントはチャンク単位で来るため、```markdown と閉じの ``` が別チャンクになる
+
+**解決策**: 出力専用のツールを作成し、ツール経由で出力させる
+```python
+@tool
+def output_content(content: str) -> str:
+    """生成したコンテンツを出力します。"""
+    global _generated_content
+    _generated_content = content
+    return "出力完了"
+```
+
+システムプロンプトで「必ずこのツールを使って出力してください」と指示する。
+
+### Tavily APIキーの環境変数
+
+**症状**: AgentCore RuntimeでTavily検索が動かない
+
+**原因**: 環境変数がランタイムに渡されていない
+
+**解決策**: CDKで環境変数を設定
+```typescript
+const runtime = new agentcore.Runtime(stack, 'MyRuntime', {
+  runtimeName: 'my-agent',
+  agentRuntimeArtifact: artifact,
+  environmentVariables: {
+    TAVILY_API_KEY: process.env.TAVILY_API_KEY || '',
+  },
+});
+```
+
+sandbox起動時に環境変数を設定:
+```bash
+export TAVILY_API_KEY=$(grep TAVILY_API_KEY .env | cut -d= -f2) && npx ampx sandbox
+```
+
+## Amplify sandbox関連
+
+### 複数sandboxインスタンス競合
+
+**症状**:
+```
+[ERROR] [MultipleSandboxInstancesError] Multiple sandbox instances detected.
+```
+
+**原因**: 複数のampxプロセスが同時実行中
+
+**解決策**:
+```bash
+# 1. プロセス確認
+ps aux | grep "ampx" | grep -v grep
+
+# 2. アーティファクトクリア
+rm -rf .amplify/artifacts/
+
+# 3. sandbox完全削除（正しい方法）
+npx ampx sandbox delete --yes
+
+# 4. 新しくsandbox起動
+npx ampx sandbox
+```
+
+**注意**: `pkill` や `kill` でプロセスを強制終了すると状態が不整合になる。必ず `sandbox delete` を使う。
+
+### sandbox変更が反映されない
+
+**症状**: agent.pyを変更してもランタイムに反映されない
+
+**原因候補**:
+1. 複数sandboxインスタンスの競合
+2. Docker未起動
+3. Hotswapが正しく動作していない
+
+**解決策**:
+1. sandbox deleteで完全削除
+2. Dockerが起動していることを確認
+3. 新しくsandbox起動
+4. デプロイ完了を待つ（5-10分）
+
+### Docker未起動エラー
+
+**症状**:
+```
+ERROR: Cannot connect to the Docker daemon
+[ERROR] [UnknownFault] ToolkitError: Failed to build asset
+```
+
+**解決策**: Docker Desktop起動後、ファイルをtouchして再トリガー
+
 ## デバッグTips
 
 ### Chrome DevTools MCP
@@ -143,4 +299,12 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 Lambda/AgentCoreの問題を調査する際は、AWS CLIでログを確認：
 ```bash
 aws logs tail /aws/bedrock-agentcore/runtime/RUNTIME_NAME --follow
+```
+
+### Marpテーマ確認
+
+スライドに適用されているテーマを確認するには、ブラウザDevToolsで:
+```javascript
+// section要素のdata-theme属性を確認
+document.querySelectorAll('section[data-theme]')
 ```

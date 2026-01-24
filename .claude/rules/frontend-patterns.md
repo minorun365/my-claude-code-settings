@@ -157,3 +157,101 @@ import { translations } from '@aws-amplify/ui-react';
 I18n.putVocabularies(translations);
 I18n.setLanguage('ja');
 ```
+
+## ステータス表示パターン
+
+### 重複防止（ツール使用イベント）
+
+LLMのストリーミングでは、同じツールに対して複数の`tool_use`イベントが送信されることがある。
+ステータスメッセージの重複を防ぐには、追加前に既存チェックが必要。
+
+```typescript
+onToolUse: (toolName) => {
+  if (toolName === 'output_slide') {
+    setMessages(prev => {
+      // 既存のステータスがあればスキップ
+      const hasExisting = prev.some(
+        msg => msg.isStatus && msg.statusText === 'スライドを生成中...'
+      );
+      if (hasExisting) return prev;
+      return [
+        ...prev,
+        { role: 'assistant', content: '', isStatus: true, statusText: 'スライドを生成中...' }
+      ];
+    });
+  }
+},
+```
+
+### 複数ステータスのアイコン切り替え
+
+完了状態のステータスが複数ある場合、OR条件でチェックマークを表示。
+
+```tsx
+// NG: 1つの完了状態のみ
+{message.statusText === '生成しました' ? <CheckIcon /> : <Spinner />}
+
+// OK: 複数の完了状態に対応
+{message.statusText === '生成しました' || message.statusText === '検索完了' ? (
+  <span className="text-green-600">✓</span>
+) : (
+  <span className="animate-spin">◌</span>
+)}
+```
+
+### ステータス遷移の連動
+
+前のステータスを完了に更新しつつ、新しいステータスを追加する場合。
+
+```typescript
+// Web検索 → スライド生成 の遷移例
+if (toolName === 'output_slide') {
+  setMessages(prev => {
+    // Web検索中を完了に更新
+    const updated = prev.map(msg =>
+      msg.isStatus && msg.statusText === 'Web検索中...'
+        ? { ...msg, statusText: 'Web検索完了' }
+        : msg
+    );
+    // 新しいステータスを追加
+    return [
+      ...updated,
+      { role: 'assistant', content: '', isStatus: true, statusText: 'スライドを生成中...' }
+    ];
+  });
+}
+```
+
+## Marp Coreカスタムテーマ
+
+### テーマの追加方法
+
+```typescript
+import Marp from '@marp-team/marp-core';
+import customTheme from '../themes/custom.css?raw';  // Viteの?rawでCSSを文字列として読み込み
+
+const marp = new Marp();
+marp.themeSet.add(customTheme);  // カスタムテーマを登録
+const { html, css } = marp.render(markdown);
+```
+
+### コミュニティテーマの利用
+
+Marpコミュニティテーマ（例: border）を使う場合:
+1. CSSファイルをダウンロード
+2. `src/themes/` に配置
+3. `?raw` サフィックスでインポート
+4. `marp.themeSet.add()` で登録
+
+**参考**: https://rnd195.github.io/marp-community-themes/
+
+### フロントエンドとバックエンドの両方に配置
+
+カスタムテーマを使う場合、以下の両方に配置が必要:
+- `src/themes/xxx.css` - フロントエンド（Marp Core）用
+- `amplify/agent/runtime/xxx.css` - バックエンド（Marp CLI PDF生成）用
+
+PDF生成時は `--theme` オプションでCSSファイルを指定:
+```python
+cmd = ["marp", md_path, "--pdf", "--theme", str(theme_path)]
+```

@@ -88,18 +88,123 @@ npx ampx sandbox
 
 ## 本番環境（Amplify Console）
 
-### 制約
-- Docker build 未サポート（2026/1時点）
+### Dockerビルド対応
 
-### 回避策
-1. GitHub ActionsでECRプッシュ → CDKでECR参照
-2. sandboxと本番でビルド方法を分岐
-3. Amplify ConsoleのDocker対応を待つ
+デフォルトビルドイメージにはDockerが含まれていないが、**カスタムビルドイメージ**を設定することでDocker buildが可能。
+
+```
+public.ecr.aws/codebuild/amazonlinux-x86_64-standard:5.0
+```
+
+### 設定手順
+
+1. Amplify Console → 対象アプリ
+2. **Hosting** → **Build settings** → **Build image settings** → **Edit**
+3. **Build image** → **Custom Build Image** を選択
+4. イメージ名を入力: `public.ecr.aws/codebuild/amazonlinux-x86_64-standard:5.0`
+5. **Save**
+
+### カスタムビルドイメージの要件
+
+- Linux（x86-64、glibc対応）
+- cURL、Git、OpenSSH、Bash
+- Node.js + NPM（推奨）
+
+### 環境変数の設定
+
+Amplify Console → **Environment variables** で設定:
+- APIキー等の機密情報はここで設定
+- CDKのビルド時に参照可能
 
 ## CDK Hotswap
 
 - CDK v1.14.0〜 で Bedrock AgentCore Runtime に対応
 - Amplify toolkit-lib の対応バージョンへの更新を待つ必要あり
+
+### Amplify で AgentCore Hotswap を先行利用する方法（Workaround）
+
+Amplify の公式アップデートを待たずに Hotswap を試す場合、`package.json` の `overrides` を使用：
+
+```json
+{
+  "overrides": {
+    "@aws-cdk/toolkit-lib": "1.14.0",
+    "@smithy/core": "^3.21.0"
+  }
+}
+```
+
+| パッケージ | バージョン | 理由 |
+|-----------|-----------|------|
+| `@aws-cdk/toolkit-lib` | `1.14.0` | AgentCore Hotswap 対応版 |
+| `@smithy/core` | `^3.21.0` | AWS SDK のリグレッションバグ対応 |
+
+**注意事項**:
+- 正攻法ではないので、お試し用途で使用
+- Amplify の公式アップデートが来たら overrides を削除する
+- 参考: [go-to-k/amplify-agentcore-cdk](https://github.com/go-to-k/amplify-agentcore-cdk)
+
+## sandbox管理
+
+### 正しい停止方法
+
+sandboxを停止する際は `npx ampx sandbox delete` を使用する。
+
+```bash
+# 正しい方法
+npx ampx sandbox delete --yes
+
+# NG: pkillやkillでプロセスを強制終了すると状態が不整合になる
+```
+
+### 複数インスタンスの競合
+
+**症状**:
+```
+[ERROR] [MultipleSandboxInstancesError] Multiple sandbox instances detected.
+```
+
+**原因**: 複数のsandboxプロセスが同時に動作している
+
+**解決策**:
+1. すべてのampxプロセスを確認
+   ```bash
+   ps aux | grep "ampx" | grep -v grep
+   ```
+2. `.amplify/artifacts/` をクリア
+   ```bash
+   rm -rf .amplify/artifacts/
+   ```
+3. `npx ampx sandbox delete --yes` で完全削除
+4. 新しくsandboxを1つだけ起動
+
+### ファイル変更が検知されない
+
+**症状**: agent.pyなどを変更してもデプロイがトリガーされない
+
+**原因**: sandboxが古い状態で動作している、または複数インスタンス競合
+
+**解決策**:
+1. sandbox deleteで完全削除
+2. 新しくsandbox起動
+3. ファイルをtouchしてトリガー
+   ```bash
+   touch amplify/agent/runtime/agent.py
+   ```
+
+### Docker未起動エラー
+
+**症状**:
+```
+ERROR: Cannot connect to the Docker daemon at unix:///...
+[ERROR] [UnknownFault] ToolkitError: Failed to build asset
+```
+
+**原因**: Docker Desktopが起動していない
+
+**解決策**:
+1. Docker Desktopを起動
+2. ファイルをtouchしてデプロイ再トリガー
 
 ## よくあるエラー
 
