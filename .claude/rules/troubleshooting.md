@@ -87,6 +87,36 @@ aws amplify update-app \
 
 ## フロントエンド関連
 
+### OGP/Twitterカード: 画像が表示されない
+
+**症状**: TwitterでURLをシェアしてもカード画像が表示されない
+
+**原因候補**:
+1. `og:image`が相対パス（`/image.jpg`）になっている → Twitterは絶対URLが必須
+2. `twitter:image`タグがない
+3. 画像サイズが大きすぎる（5MB超）
+4. HTTPS未対応
+
+**解決策**:
+```html
+<!-- OGP -->
+<meta property="og:url" content="https://example.com/" />
+<meta property="og:image" content="https://example.com/ogp.jpg" />
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://example.com/ogp.jpg" />
+```
+
+**チェックリスト**:
+- [ ] `og:image`と`twitter:image`は絶対URL（`https://`から始まる）
+- [ ] `og:url`でサイトURLを明示
+- [ ] 画像は5MB以下、推奨1200×630px
+- [ ] `twitter:card`は`summary`（小）か`summary_large_image`（大）
+- [ ] HTTPSで配信されている
+
+**注意**: Twitterカードのキャッシュは最大7日間保持される。修正後すぐに反映されない場合がある。
+
 ### React StrictMode: 文字がダブって表示される
 
 **症状**: ストリーミングUIで文字が2回表示される

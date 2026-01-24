@@ -101,6 +101,29 @@ Marpの`class: invert`とTailwindの`.invert`ユーティリティが競合す�
 }
 ```
 
+### SVGのレスポンシブ対応（スマホ対応）
+
+MarpのSVGは固定サイズ（1280x720px）の`width`/`height`属性を持っているため、スマホの狭い画面では見切れる。SVG属性を動的に変更して対応：
+
+```typescript
+const svgs = doc.querySelectorAll('svg[data-marpit-svg]');
+
+return Array.from(svgs).map((svg, index) => {
+  // SVGのwidth/height属性を100%に変更してレスポンシブ対応
+  svg.setAttribute('width', '100%');
+  svg.setAttribute('height', '100%');
+  svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+  return { index, html: svg.outerHTML };
+});
+```
+
+**ポイント**:
+- `width`/`height`を`100%`に → 親要素にフィット
+- `preserveAspectRatio="xMidYMid meet"` → アスペクト比維持で中央配置
+- CSSの`!important`よりSVG属性の直接変更が確実
+
+**汎用パターン**: 外部ライブラリが生成する固定サイズSVGをレスポンシブにする場合に有効
+
 ## SSEストリーミング処理
 
 ```typescript
@@ -157,6 +180,82 @@ import { translations } from '@aws-amplify/ui-react';
 I18n.putVocabularies(translations);
 I18n.setLanguage('ja');
 ```
+
+### 認証画面のカスタマイズ（Header/Footer）
+
+Cognito認証画面にアプリ名やプライバシーポリシーを表示する：
+
+```tsx
+const authComponents = {
+  Header() {
+    return (
+      <div className="text-center py-4">
+        <h1 className="text-2xl font-bold text-gray-800">アプリ名</h1>
+        <p className="text-sm text-gray-500 mt-1">
+          「Create Account」で誰でも利用できます！
+        </p>
+      </div>
+    );
+  },
+  Footer() {
+    return (
+      <div className="text-center py-3 px-4">
+        <p className="text-xs text-gray-400 leading-relaxed">
+          登録されたメールアドレスは認証目的でのみ使用します。
+        </p>
+      </div>
+    );
+  },
+};
+
+<Authenticator components={authComponents}>
+  {({ signOut }) => <MainApp signOut={signOut} />}
+</Authenticator>
+```
+
+**用途例**:
+- Header: アプリ名、利用ガイド、ロゴ
+- Footer: プライバシーポリシー、免責事項、メールアドレスの利用目的
+
+### 認証画面の配色カスタマイズ（CSS方式）
+
+`createTheme`/`ThemeProvider`ではグラデーションが使えないため、CSSで直接スタイリングするのが確実。
+
+```css
+/* src/index.css */
+
+/* プライマリボタン（グラデーション対応） */
+[data-amplify-authenticator] .amplify-button--primary {
+  background: linear-gradient(to right, #1a3a6e, #5ba4d9);
+  border: none;
+}
+
+[data-amplify-authenticator] .amplify-button--primary:hover {
+  background: linear-gradient(to right, #142d54, #4a93c8);
+}
+
+/* リンク（パスワードを忘れた等） */
+[data-amplify-authenticator] .amplify-button--link {
+  color: #1a3a6e;
+}
+
+/* タブ */
+[data-amplify-authenticator] .amplify-tabs__item--active {
+  color: #1a3a6e;
+  border-color: #5ba4d9;
+}
+
+/* 入力フォーカス */
+[data-amplify-authenticator] input:focus {
+  border-color: #5ba4d9;
+  box-shadow: 0 0 0 2px rgba(91, 164, 217, 0.2);
+}
+```
+
+**ポイント**:
+- `[data-amplify-authenticator]`セレクタで認証画面のみに適用
+- `createTheme`はグラデーション非対応 → CSS直接指定が確実
+- アプリ本体と同じ配色を使用して統一感を出す
 
 ## ステータス表示パターン
 
