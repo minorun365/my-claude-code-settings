@@ -118,9 +118,108 @@ Amplify toolkit-lib がまだ対応バージョンに更新されていない場
 
 詳細は `amplify-cdk.md` を参照。
 
+## エンドポイント管理
+
+### DEFAULTエンドポイント
+
+Runtime を作成すると **DEFAULT エンドポイントが自動的に作成される**。特別な理由がなければ `addEndpoint()` は不要。
+
+```typescript
+// NG: 不要なエンドポイントが増える
+const endpoint = runtime.addEndpoint('my-endpoint');  // DEFAULT + my-endpoint の2つになる
+
+// OK: DEFAULTエンドポイントを使う
+// addEndpoint() を呼ばない → DEFAULTのみ
+```
+
+### フロントエンドからの呼び出し
+
+DEFAULTエンドポイントを使用する場合：
+
+```typescript
+const runtimeArn = outputs.custom?.agentRuntimeArn;
+const encodedArn = encodeURIComponent(runtimeArn);
+const url = `https://bedrock-agentcore.${region}.amazonaws.com/runtimes/${encodedArn}/invocations?qualifier=DEFAULT`;
+```
+
+### 不要なエンドポイントの削除
+
+```bash
+aws bedrock-agentcore-control delete-agent-runtime-endpoint \
+  --agent-runtime-id {runtimeId} \
+  --endpoint-name {endpointName} \
+  --region us-east-1
+```
+
+## Observability（トレース）
+
+### 必要な設定
+
+AgentCore Observability でトレースを出力するには、以下の設定が必要：
+
+1. **requirements.txt に OTEL パッケージを追加**
+
+```
+strands-agents[otel]          # otel extra が必要
+aws-opentelemetry-distro      # ADOT
+```
+
+2. **Dockerfileで `opentelemetry-instrument` を使って起動**
+
+```dockerfile
+# OTELの自動計装を有効にして起動
+CMD ["opentelemetry-instrument", "python", "agent.py"]
+```
+
+**注意**: `python agent.py` だけではOTELトレースが出力されない。
+
+3. **CDKで環境変数を設定**（CDKデプロイの場合に必要）
+
+```typescript
+const runtime = new agentcore.Runtime(stack, 'MyRuntime', {
+  // ...
+  environmentVariables: {
+    // Observability（OTEL）設定
+    AGENT_OBSERVABILITY_ENABLED: 'true',
+    OTEL_PYTHON_DISTRO: 'aws_distro',
+    OTEL_PYTHON_CONFIGURATOR: 'aws_configurator',
+    OTEL_EXPORTER_OTLP_PROTOCOL: 'http/protobuf',
+  },
+});
+```
+
+**注意**: `bedrock_agentcore_starter_toolkit` でデプロイすると自動設定されるが、CDKの場合は手動で環境変数が必要。
+
+4. **CloudWatch Transaction Search を有効化**（アカウントごとに1回）
+
+```bash
+# ポリシー作成
+aws logs put-resource-policy --policy-name TransactionSearchPolicy --policy-document '{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Sid": "TransactionSearchXRayAccess",
+    "Effect": "Allow",
+    "Principal": {"Service": "xray.amazonaws.com"},
+    "Action": "logs:PutLogEvents",
+    "Resource": [
+      "arn:aws:logs:us-east-1:*:log-group:aws/spans:*",
+      "arn:aws:logs:us-east-1:*:log-group:/aws/application-signals/data:*"
+    ]
+  }]
+}' --region us-east-1
+
+# トレース送信先をCloudWatchに設定
+aws xray update-trace-segment-destination --destination CloudWatchLogs --region us-east-1
+```
+
+### トレースの確認
+
+1. CloudWatch Console → **Bedrock AgentCore GenAI Observability**
+2. Agents View / Sessions View / Traces View で確認可能
+
 ## CDK（@aws-cdk/aws-bedrock-agentcore-alpha）
 
-### Runtime作成
+### Runtime作成（推奨パターン）
 
 ```typescript
 import * as agentcore from '@aws-cdk/aws-bedrock-agentcore-alpha';
@@ -138,7 +237,7 @@ const runtime = new agentcore.Runtime(stack, 'MyRuntime', {
   ),
 });
 
-const endpoint = runtime.addEndpoint('my-endpoint');
+// エンドポイントはDEFAULTを使用（addEndpoint不要）
 ```
 
 ### Amplify Gen2統合
@@ -147,7 +246,8 @@ const endpoint = runtime.addEndpoint('my-endpoint');
 // amplify/backend.ts
 backend.addOutput({
   custom: {
-    agentEndpointArn: endpoint.agentRuntimeEndpointArn,
+    agentRuntimeArn: runtime.agentRuntimeArn,  // RuntimeのARNを出力
+    environment: isSandbox ? 'sandbox' : branchName,
   },
 });
 ```

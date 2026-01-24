@@ -91,6 +91,40 @@ const svgs = doc.querySelectorAll('svg[data-marpit-svg]');
 
 **重要**: `section`だけ抽出するとCSSセレクタがマッチしない。`div.marpit > svg > foreignObject > section` 構造が必要。
 
+### iOS Safari対応（必須）
+
+iOS Safari/Chromeでスライドが見切れる問題がある。これはWebKit Bug 23113（15年以上放置）が原因で、`<foreignObject>`内のHTMLがviewBox変換を正しく継承しない。
+
+**解決策**: `marpit-svg-polyfill`を使用
+
+```bash
+npm install @marp-team/marpit-svg-polyfill
+```
+
+```tsx
+import { useEffect, useRef } from 'react';
+import { observe } from '@marp-team/marpit-svg-polyfill';
+
+function SlidePreview({ markdown }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (containerRef.current) {
+      const cleanup = observe(containerRef.current);
+      return cleanup;
+    }
+  }, [markdown]);
+
+  return (
+    <div ref={containerRef}>
+      {/* スライド表示 */}
+    </div>
+  );
+}
+```
+
+**注意**: Chrome DevToolsのiOSエミュレーションでは再現しない（内部エンジンが異なるため）。実機テストが必須。
+
 ### Tailwind CSSとの競合
 Marpの`class: invert`とTailwindの`.invert`ユーティリティが競合する。
 
@@ -354,3 +388,56 @@ PDF生成時は `--theme` オプションでCSSファイルを指定:
 ```python
 cmd = ["marp", md_path, "--pdf", "--theme", str(theme_path)]
 ```
+
+## OGP/Twitterカード設定
+
+### 推奨設定（summaryカード）
+
+Twitterで画像付きカードを表示するための完全な設定。`og:*` と `twitter:*` の両方を明示的に指定することが重要。
+
+```html
+<!-- OGP -->
+<meta property="og:title" content="タイトル" />
+<meta property="og:description" content="説明" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://example.com/" />
+<meta property="og:image" content="https://example.com/ogp.jpg?v=2" />
+<meta property="og:image:secure_url" content="https://example.com/ogp.jpg?v=2" />
+<meta property="og:image:width" content="512" />
+<meta property="og:image:height" content="512" />
+<meta property="og:image:type" content="image/jpeg" />
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:site" content="@username" />
+<meta name="twitter:title" content="タイトル" />
+<meta name="twitter:description" content="説明" />
+<meta name="twitter:image" content="https://example.com/ogp.jpg?v=2" />
+```
+
+### カード種類と画像サイズ
+
+| カード種類 | 表示 | 推奨画像サイズ |
+|-----------|------|---------------|
+| `summary` | 小さい画像が右側 | 512x512（正方形） |
+| `summary_large_image` | 大きい画像が上部 | 1200x630（横長） |
+
+### 画像のExif削除
+
+iPhoneで撮った画像などはExifメタデータが含まれている場合がある。削除推奨。
+
+```python
+from PIL import Image
+img = Image.open('original.jpg')
+img_clean = Image.new('RGB', img.size)
+img_clean.paste(img)
+img_clean.save('ogp.jpg', 'JPEG', quality=85)
+```
+
+### キャッシュ対策
+
+画像URLにバージョンパラメータを追加してキャッシュを回避：
+- `ogp.jpg?v=2` のようにクエリパラメータを追加
+- 変更後は [Twitter Card Validator](https://cards-dev.twitter.com/validator) で再検証
+
+**詳細なトラブルシューティング**: `~/.claude/rules/troubleshooting.md` の「OGP/Twitterカード」セクションを参照

@@ -12,8 +12,8 @@ Claude Codeの**共通設定のみ**をGitHubリポジトリと双方向同期�
 
 | ローカル | リポジトリ |
 |----------|------------|
-| `~/.claude/rules/` | `rules/` |
-| `~/.claude/skills/` | `skills/` |
+| `~/.claude/rules/` | `.claude/rules/` |
+| `~/.claude/skills/` | `.claude/skills/` |
 | `~/.claude/CLAUDE.md` | `.claude/CLAUDE.md` |
 
 ## 同期対象外（PC固有設定）
@@ -38,15 +38,15 @@ Claude Codeの**共通設定のみ**をGitHubリポジトリと双方向同期�
 
 1. **差分確認**
    ```bash
-   diff -rq ~/.claude/rules/ ~/git/minorun365/my-claude-code-settings/rules/
-   diff -rq ~/.claude/skills/ ~/git/minorun365/my-claude-code-settings/skills/
+   diff -rq ~/.claude/rules/ ~/git/minorun365/my-claude-code-settings/.claude/rules/
+   diff -rq ~/.claude/skills/ ~/git/minorun365/my-claude-code-settings/.claude/skills/
    diff ~/.claude/CLAUDE.md ~/git/minorun365/my-claude-code-settings/.claude/CLAUDE.md
    ```
 
 2. **同期実行**
    ```bash
-   rsync -av --delete ~/.claude/rules/ ~/git/minorun365/my-claude-code-settings/rules/
-   rsync -av --delete ~/.claude/skills/ ~/git/minorun365/my-claude-code-settings/skills/
+   rsync -av --delete ~/.claude/rules/ ~/git/minorun365/my-claude-code-settings/.claude/rules/
+   rsync -av --delete ~/.claude/skills/ ~/git/minorun365/my-claude-code-settings/.claude/skills/
    cp ~/.claude/CLAUDE.md ~/git/minorun365/my-claude-code-settings/.claude/
    ```
 
@@ -69,15 +69,15 @@ Claude Codeの**共通設定のみ**をGitHubリポジトリと双方向同期�
 
 2. **差分確認**
    ```bash
-   diff -rq ~/git/minorun365/my-claude-code-settings/rules/ ~/.claude/rules/
-   diff -rq ~/git/minorun365/my-claude-code-settings/skills/ ~/.claude/skills/
+   diff -rq ~/git/minorun365/my-claude-code-settings/.claude/rules/ ~/.claude/rules/
+   diff -rq ~/git/minorun365/my-claude-code-settings/.claude/skills/ ~/.claude/skills/
    diff ~/git/minorun365/my-claude-code-settings/.claude/CLAUDE.md ~/.claude/CLAUDE.md
    ```
 
 3. **同期実行**（ユーザー確認後）
    ```bash
-   rsync -av --delete ~/git/minorun365/my-claude-code-settings/rules/ ~/.claude/rules/
-   rsync -av --delete ~/git/minorun365/my-claude-code-settings/skills/ ~/.claude/skills/
+   rsync -av --delete ~/git/minorun365/my-claude-code-settings/.claude/rules/ ~/.claude/rules/
+   rsync -av --delete ~/git/minorun365/my-claude-code-settings/.claude/skills/ ~/.claude/skills/
    cp ~/git/minorun365/my-claude-code-settings/.claude/CLAUDE.md ~/.claude/
    ```
 

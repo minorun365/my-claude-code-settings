@@ -18,6 +18,33 @@ pip install strands-agents
 uv add strands-agents
 ```
 
+### Observability（トレース）対応
+
+AgentCore Observability でトレースを出力する場合、以下の3点が必要：
+
+1. **requirements.txt**
+```
+strands-agents[otel]
+aws-opentelemetry-distro
+```
+
+2. **Dockerfile**（`opentelemetry-instrument` で起動）
+```dockerfile
+CMD ["opentelemetry-instrument", "python", "agent.py"]
+```
+
+3. **CDK環境変数**
+```typescript
+environmentVariables: {
+  AGENT_OBSERVABILITY_ENABLED: 'true',
+  OTEL_PYTHON_DISTRO: 'aws_distro',
+  OTEL_PYTHON_CONFIGURATOR: 'aws_configurator',
+  OTEL_EXPORTER_OTLP_PROTOCOL: 'http/protobuf',
+}
+```
+
+**注意**: 上記3つすべてが必要。1つでも欠けるとトレースが出力されない。
+
 ## Agent作成
 
 ### 基本構造
