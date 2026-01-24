@@ -10,10 +10,10 @@ if [ "$USAGE" != "null" ] && [ "$CONTEXT_SIZE" != "null" ] && [ "$CONTEXT_SIZE" 
 
     # 警告絵文字の設定
     WARNING=""
-    if [ "$PERCENT" -ge 50 ]; then
+    if [ "$PERCENT" -ge 65 ]; then
         WARNING=" ⚠️"
     fi
-    if [ "$PERCENT" -ge 70 ]; then
+    if [ "$PERCENT" -ge 80 ]; then
         WARNING=" 🚨"
     fi
 
