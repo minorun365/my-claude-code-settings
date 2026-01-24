@@ -1,4 +1,4 @@
-# my-claude-code-settings
+# みのるんのClaude Code設定
 
 Claude Code（Anthropic公式CLI）の個人設定ファイル集。
 
