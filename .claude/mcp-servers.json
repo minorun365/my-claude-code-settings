@@ -1,0 +1,72 @@
+{
+  "strands": {
+    "type": "stdio",
+    "command": "uvx",
+    "args": [
+      "strands-agents-mcp-server"
+    ],
+    "env": {}
+  },
+  "aws-mcp": {
+    "type": "stdio",
+    "command": "uvx",
+    "args": [
+      "mcp-proxy-for-aws@latest",
+      "https://aws-mcp.us-east-1.api.aws/mcp",
+      "--metadata",
+      "AWS_REGION=us-east-1"
+    ]
+  },
+  "playwright": {
+    "type": "stdio",
+    "command": "npx",
+    "args": [
+      "@playwright/mcp@latest"
+    ],
+    "env": {}
+  },
+  "aws-iac-mcp-server": {
+    "type": "stdio",
+    "command": "uvx",
+    "args": [
+      "awslabs.aws-iac-mcp-server@latest"
+    ],
+    "env": {
+      "FASTMCP_LOG_LEVEL": "ERROR"
+    }
+  },
+  "chrome-devtools": {
+    "type": "stdio",
+    "command": "npx",
+    "args": [
+      "-y",
+      "chrome-devtools-mcp@latest"
+    ],
+    "env": {}
+  },
+  "context7": {
+    "type": "http",
+    "url": "https://context7.liam.sh/mcp"
+  },
+  "github": {
+    "type": "stdio",
+    "command": "npx",
+    "args": [
+      "-y",
+      "@modelcontextprotocol/server-github"
+    ],
+    "env": {
+      "GITHUB_PERSONAL_ACCESS_TOKEN": "<MASKED>"
+    }
+  },
+  "bedrock-agentcore-mcp-server": {
+    "type": "stdio",
+    "command": "uvx",
+    "args": [
+      "awslabs.amazon-bedrock-agentcore-mcp-server@latest"
+    ],
+    "env": {
+      "FASTMCP_LOG_LEVEL": "ERROR"
+    }
+  }
+}

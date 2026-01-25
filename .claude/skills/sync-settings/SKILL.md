@@ -1,6 +1,6 @@
 ---
 name: sync-settings
-description: Claude Codeの共通設定（rules、skills、CLAUDE.md）をGitHubリポジトリと双方向同期する
+description: Claude Codeの共通設定（rules、skills、CLAUDE.md、mcpServers）をGitHubリポジトリと双方向同期する
 user-invocable: true
 ---
 
@@ -10,11 +10,27 @@ Claude Codeの**共通設定のみ**をGitHubリポジトリと双方向同期�
 
 ## 同期対象（共通設定）
 
-| ローカル | リポジトリ |
-|----------|------------|
-| `~/.claude/rules/` | `.claude/rules/` |
-| `~/.claude/skills/` | `.claude/skills/` |
-| `~/.claude/CLAUDE.md` | `.claude/CLAUDE.md` |
+| ローカル | リポジトリ | 備考 |
+|----------|------------|------|
+| `~/.claude/rules/` | `.claude/rules/` | |
+| `~/.claude/skills/` | `.claude/skills/` | |
+| `~/.claude/CLAUDE.md` | `.claude/CLAUDE.md` | |
+| `~/.claude.json` の `mcpServers` | `.claude/mcp-servers.json` | 機密情報はマスク |
+
+## mcpServers同期の注意事項
+
+`mcpServers`セクションは以下のルールで同期：
+
+1. **Push時**: 環境変数の値（トークン等）を `"<MASKED>"` に置換してエクスポート
+2. **Pull時**: リポジトリのJSONを参考に手動で設定（機密情報は各自で設定）
+
+### 機密情報のマスク対象
+
+以下のキーの値は自動的にマスクされる：
+- `GITHUB_PERSONAL_ACCESS_TOKEN`
+- `*_API_KEY`
+- `*_TOKEN`
+- `*_SECRET`
 
 ## 同期対象外（PC固有設定）
 
@@ -50,7 +66,23 @@ Claude Codeの**共通設定のみ**をGitHubリポジトリと双方向同期�
    cp ~/.claude/CLAUDE.md ~/git/minorun365/my-claude-code-settings/.claude/
    ```
 
-3. **コミット・プッシュ**（ユーザー確認後）
+3. **mcpServers同期**（機密情報をマスクしてエクスポート）
+   ```bash
+   # jqで mcpServers を抽出し、機密情報をマスク
+   jq '.mcpServers | walk(
+     if type == "object" then
+       with_entries(
+         if (.key | test("TOKEN|KEY|SECRET"; "i")) and (.value | type == "string")
+         then .value = "<MASKED>"
+         else .
+         end
+       )
+     else .
+     end
+   )' ~/.claude.json > ~/git/minorun365/my-claude-code-settings/.claude/mcp-servers.json
+   ```
+
+4. **コミット・プッシュ**（ユーザー確認後）
    ```bash
    cd ~/git/minorun365/my-claude-code-settings
    git add -A
@@ -80,6 +112,10 @@ Claude Codeの**共通設定のみ**をGitHubリポジトリと双方向同期�
    rsync -av --delete ~/git/minorun365/my-claude-code-settings/.claude/skills/ ~/.claude/skills/
    cp ~/git/minorun365/my-claude-code-settings/.claude/CLAUDE.md ~/.claude/
    ```
+
+4. **mcpServers適用**（手動）
+   - `.claude/mcp-servers.json` を参照して `~/.claude.json` の `mcpServers` を更新
+   - `<MASKED>` 部分は各自の認証情報に置き換える
 
 ## 注意事項
 
