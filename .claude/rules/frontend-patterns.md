@@ -126,12 +126,39 @@ function SlidePreview({ markdown }) {
 **注意**: Chrome DevToolsのiOSエミュレーションでは再現しない（内部エンジンが異なるため）。実機テストが必須。
 
 ### Tailwind CSSとの競合
+
+#### invertクラスの競合
 Marpの`class: invert`とTailwindの`.invert`ユーティリティが競合する。
 
 ```css
 /* src/index.css に追加 */
 .marpit section.invert {
   filter: none !important;
+}
+```
+
+#### 箇条書き（リストスタイル）の競合
+Tailwind CSS v4のPreflight（CSSリセット）が`list-style: none`を適用するため、Marpスライド内の箇条書きビュレット（●○■）が消える。
+
+```css
+/* src/index.css に追加 */
+.marpit ul {
+  list-style: disc !important;
+}
+
+.marpit ol {
+  list-style: decimal !important;
+}
+
+/* ネストされたリストのスタイル */
+.marpit ul ul,
+.marpit ol ul {
+  list-style: circle !important;
+}
+
+.marpit ul ul ul,
+.marpit ol ul ul {
+  list-style: square !important;
 }
 ```
 

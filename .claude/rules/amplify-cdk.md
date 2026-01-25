@@ -206,6 +206,36 @@ ERROR: Cannot connect to the Docker daemon at unix:///...
 1. Docker Desktopを起動
 2. ファイルをtouchしてデプロイ再トリガー
 
+## deploy-time-build（本番環境ビルド）
+
+### 概要
+
+sandbox環境ではローカルでDockerビルドできるが、本番環境（Amplify Console）ではCodeBuildでビルドする必要がある。`deploy-time-build` パッケージを使用してビルドをCDK deploy時に実行する。
+
+### 環境分岐の実装
+
+```typescript
+// amplify/agent/resource.ts
+import * as ecr_assets from 'aws-cdk-lib/aws-ecr-assets';
+
+const isSandbox = !branch || branch === 'sandbox';
+
+const artifact = isSandbox
+  ? agentcore.AgentRuntimeArtifact.fromAsset(runtimePath)  // ローカルビルド
+  : agentcore.AgentRuntimeArtifact.fromAsset(runtimePath, {
+      platform: ecr_assets.Platform.LINUX_ARM64,
+      bundling: {
+        // deploy-time-build でCodeBuildビルド
+      },
+    });
+```
+
+### 参考
+
+- [deploy-time-build](https://github.com/tmokmss/deploy-time-build)
+
+---
+
 ## よくあるエラー
 
 ### amplify_outputs.json が見つからない
