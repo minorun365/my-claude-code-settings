@@ -353,6 +353,29 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 **補足**: `fonts-noto-cjk`はNoto Sans CJK（中国語・日本語・韓国語）フォントを含む
 
+## SNS連携関連
+
+### Twitter/Xシェア: ツイートボックスにテキストが入力されない ✅ 解決済
+
+**症状**: シェアリンクをクリックしてTwitterを開いても、ツイートボックスにテキストが何も入力されていない
+
+**原因**: `https://x.com/compose/post?text=...` 形式を使用していた。この形式はXのWeb UI直接アクセス用で、`text`パラメータが無視されることがある
+
+**解決策**: Twitter Web Intent形式を使用する
+
+```python
+# NG: compose/post形式（textパラメータが無視される）
+url = f"https://x.com/compose/post?text={encoded_text}"
+
+# OK: Web Intent形式（textパラメータが確実に反映される）
+url = f"https://twitter.com/intent/tweet?text={encoded_text}"
+```
+
+**ポイント**:
+- `intent/tweet` はシェアボタン用に設計された公式のWeb Intent
+- 日本語は `urllib.parse.quote(text, safe='')` でURLエンコードする
+- `#`（ハッシュタグ）も `%23` にエンコードされるが、Twitter側で正しく解釈される
+
 ## LLMアプリ関連
 
 ### ストリーミング中のコードブロック除去が困難
