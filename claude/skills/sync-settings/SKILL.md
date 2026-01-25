@@ -12,9 +12,9 @@ Claude Codeの**共通設定のみ**をGitHubリポジトリと双方向同期�
 
 | ローカル | リポジトリ | 備考 |
 |----------|------------|------|
-| `~/.claude/rules/` | `.claude/rules/` | |
-| `~/.claude/skills/` | `.claude/skills/` | |
-| `~/.claude/CLAUDE.md` | `.claude/CLAUDE.md` | |
+| `~/.claude/rules/` | `claude/rules/` | |
+| `~/.claude/skills/` | `claude/skills/` | |
+| `~/.claude/CLAUDE.md` | `claude/CLAUDE.md` | |
 | `~/.claude.json` の `mcpServers` | `.claude.json` | 機密情報はマスク |
 
 ## mcpServers同期の注意事項

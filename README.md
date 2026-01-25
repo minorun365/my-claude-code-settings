@@ -8,7 +8,7 @@
 
 ```
 .claude.json           # MCPサーバーの設定
-.claude/
+claude/                # Claude設定フォルダ（本来は頭に"."が付く）
 ├── CLAUDE.md          # ユーザーメモリー
 ├── settings.json      # Claude Codeの設定
 ├── statusline.sh      # ステータスライン設定
