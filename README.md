@@ -7,6 +7,7 @@ Claude Code（Anthropic公式CLI）の個人設定ファイル集。
 ## 構成
 
 ```
+.claude.json           # MCPサーバーの設定
 .claude/
 ├── CLAUDE.md          # グローバル設定（基本方針、AWS設定など）
 ├── settings.json      # Claude Codeの設定
