@@ -1,6 +1,6 @@
 # みのるんのClaude Code設定
 
-Claude Code（Anthropic公式CLI）の個人設定ファイル集。
+人気のコーディングAIエージェント、Claude Codeの個人設定ファイル集。
 
 [Claude Codeライトユーザー目線で、万人受けする便利設定を紹介 - Qiita](https://qiita.com/minorun365/items/3711c0de2e2558adb7c8)
 
