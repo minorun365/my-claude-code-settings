@@ -15,7 +15,7 @@ Claude Codeの**共通設定のみ**をGitHubリポジトリと双方向同期�
 | `~/.claude/rules/` | `.claude/rules/` | |
 | `~/.claude/skills/` | `.claude/skills/` | |
 | `~/.claude/CLAUDE.md` | `.claude/CLAUDE.md` | |
-| `~/.claude.json` の `mcpServers` | `.claude/mcp-servers.json` | 機密情報はマスク |
+| `~/.claude.json` の `mcpServers` | `.claude.json` | 機密情報はマスク |
 
 ## mcpServers同期の注意事項
 
@@ -69,7 +69,7 @@ Claude Codeの**共通設定のみ**をGitHubリポジトリと双方向同期�
 3. **mcpServers同期**（機密情報をマスクしてエクスポート）
    ```bash
    # jqで mcpServers を抽出し、機密情報をマスク
-   jq '.mcpServers | walk(
+   jq '{mcpServers: .mcpServers | walk(
      if type == "object" then
        with_entries(
          if (.key | test("TOKEN|KEY|SECRET"; "i")) and (.value | type == "string")
@@ -79,7 +79,7 @@ Claude Codeの**共通設定のみ**をGitHubリポジトリと双方向同期�
        )
      else .
      end
-   )' ~/.claude.json > ~/git/minorun365/my-claude-code-settings/.claude/mcp-servers.json
+   )}' ~/.claude.json > ~/git/minorun365/my-claude-code-settings/.claude.json
    ```
 
 4. **コミット・プッシュ**（ユーザー確認後）
@@ -114,7 +114,7 @@ Claude Codeの**共通設定のみ**をGitHubリポジトリと双方向同期�
    ```
 
 4. **mcpServers適用**（手動）
-   - `.claude/mcp-servers.json` を参照して `~/.claude.json` の `mcpServers` を更新
+   - `.claude.json` を参照して `~/.claude.json` の `mcpServers` を更新
    - `<MASKED>` 部分は各自の認証情報に置き換える
 
 ## 注意事項
