@@ -382,6 +382,52 @@ if (toolName === 'output_slide') {
 }
 ```
 
+### SSEストリーミング時の複数ツール発火対応
+
+同一ツールの`onToolUse`が複数回発火する場合、**重複チェック + テキスト受信時の自動完了** の組み合わせで対処する。
+
+```typescript
+onToolUse: (toolName) => {
+  if (toolName === 'web_search') {
+    setMessages(prev => {
+      // 進行中のステータスがあればスキップ（同一呼び出しの重複防止）
+      const hasInProgress = prev.some(
+        msg => msg.isStatus && msg.statusText === 'Web検索中...'
+      );
+      if (hasInProgress) return prev;
+      return [
+        ...prev,
+        { role: 'assistant', content: '', isStatus: true, statusText: 'Web検索中...' }
+      ];
+    });
+  }
+},
+onText: (text) => {
+  setMessages(prev => {
+    // テキスト受信時に進行中のステータスを自動完了
+    let msgs = prev.map(msg =>
+      msg.isStatus && msg.statusText === 'Web検索中...'
+        ? { ...msg, statusText: 'Web検索完了' }
+        : msg
+    );
+    // 以降の処理はmsgsを使う（prevではなく）
+    return [...msgs, { role: 'assistant', content: text }];
+  });
+}
+```
+
+**ポイント**: `prev`をmapした結果は新しい配列。後続処理ではmap結果の変数（`msgs`）を使うこと。`prev`を参照すると変更が反映されない。
+
+## 環境変数の読み込み（.env vs .env.local）
+
+| フレームワーク/ツール | .env | .env.local | 備考 |
+|-----------|------|-----------|------|
+| Vite | ○ | ○ | 両方読む（優先度: .env.local > .env） |
+| Next.js | ○ | ○ | 両方読む |
+| **Node.js dotenv** | ○ | × | `.env` のみ |
+
+Amplify CDK（`import 'dotenv/config'`）とViteの両方で使う場合は **`.env`** に統一する。
+
 ## Marp Coreカスタムテーマ
 
 ### テーマの追加方法
