@@ -71,5 +71,9 @@
         "FASTMCP_LOG_LEVEL": "ERROR"
       }
     }
-  }
+  },
+  "autoCompactEnabled": false,
+  "respectGitignore": false,
+  "theme": "light",
+  "autoUpdates": false
 }
