@@ -196,6 +196,49 @@ if (!response.ok) {
 }
 ```
 
+## 外部APIキーの複数フォールバックパターン
+
+レートリミットのある外部API（Tavily等）を使う場合、複数のAPIキーを環境変数に設定し、エラー時に自動で次のキーに切り替える方式が有効。Secrets Managerやローテーション関数を作るより圧倒的にシンプル。
+
+### バックエンド（Python）
+```python
+from tavily import TavilyClient
+
+# 複数キーでクライアント初期化
+_clients: list[TavilyClient] = []
+for key_name in ["API_KEY", "API_KEY2", "API_KEY3"]:
+    key = os.environ.get(key_name, "")
+    if key:
+        _clients.append(TavilyClient(api_key=key))
+
+# エラー時にフォールバック
+def search_with_fallback(query: str) -> str:
+    for client in _clients:
+        try:
+            return client.search(query=query)
+        except Exception as e:
+            error_str = str(e).lower()
+            if "rate limit" in error_str or "429" in error_str or "usage limit" in error_str:
+                continue  # 次のキーで再試行
+            raise  # レートリミット以外はそのまま例外
+    return "すべてのAPIキーが枯渇しました"
+```
+
+### CDK環境変数
+```typescript
+environmentVariables: {
+  API_KEY: process.env.API_KEY || '',
+  API_KEY2: process.env.API_KEY2 || '',
+  API_KEY3: process.env.API_KEY3 || '',
+},
+```
+
+**ポイント**:
+- 連番方式（`_1`, `_2`）でも無印+連番方式（無印, `2`, `3`）でもOK。`.env`と統一すること
+- レートリミット以外のエラー（認証エラー等）はフォールバックせずそのまま返す
+- Amplify Console / `.env` / CDK環境変数の3箇所すべてに設定が必要
+- sandbox再起動しないと`.env`の変更が反映されない
+
 ## モック実装（ローカル開発用）
 
 ```typescript

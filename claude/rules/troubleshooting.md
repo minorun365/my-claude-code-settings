@@ -418,6 +418,20 @@ sandbox起動時に環境変数を設定:
 export TAVILY_API_KEY=$(grep TAVILY_API_KEY .env | cut -d= -f2) && npx ampx sandbox
 ```
 
+### Tavily APIレートリミット: フォールバックが効かない
+
+**症状**: 複数APIキーのフォールバックを実装したが、枯渇したキーで止まり次のキーに切り替わらない
+
+**原因**: Tavilyのエラーメッセージが `"This request exceeds your plan's set usage limit"` で、`rate limit` や `quota` という文字列を含まない
+
+**解決策**: エラー判定条件に `"usage limit"` を追加
+```python
+if "rate limit" in error_str or "429" in error_str or "quota" in error_str or "usage limit" in error_str:
+    continue  # 次のキーで再試行
+```
+
+**教訓**: 外部APIのエラーメッセージは実際にエラーを発生させて確認すること。ドキュメントと異なるメッセージが返る場合がある。
+
 ## Amplify sandbox関連
 
 ### 複数sandboxインスタンス競合
