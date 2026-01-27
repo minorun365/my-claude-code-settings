@@ -1,6 +1,6 @@
 ---
 name: sync-settings
-description: Claude Codeの共通設定（rules、skills、CLAUDE.md、mcpServers）をGitHubリポジトリと双方向同期する
+description: Claude Codeの共通設定（rules、skills、CLAUDE.md、settings.json、mcpServers）をGitHubリポジトリと双方向同期する
 user-invocable: true
 ---
 
@@ -15,6 +15,7 @@ Claude Codeの**共通設定のみ**をGitHubリポジトリと双方向同期�
 | `~/.claude/rules/` | `claude/rules/` | |
 | `~/.claude/skills/` | `claude/skills/` | |
 | `~/.claude/CLAUDE.md` | `claude/CLAUDE.md` | |
+| `~/.claude/settings.json` | `claude/settings.json` | 権限、hooks、statusLine等 |
 | `~/.claude.json` の `mcpServers` | `.claude.json` | 機密情報はマスク |
 
 ## mcpServers同期の注意事項
@@ -36,7 +37,6 @@ Claude Codeの**共通設定のみ**をGitHubリポジトリと双方向同期�
 
 以下はPC固有のため**同期しない**：
 
-- `~/.claude/settings.json` - 権限、hooks、statusLine等（PC固有パスやOS依存）
 - `~/.claude/hooks/` - フックスクリプト
 - `~/.claude/projects/` - プロジェクト固有設定
 - `~/.claude/plugins/` - プラグイン設定
@@ -54,16 +54,18 @@ Claude Codeの**共通設定のみ**をGitHubリポジトリと双方向同期�
 
 1. **差分確認**
    ```bash
-   diff -rq ~/.claude/rules/ ~/git/minorun365/my-claude-code-settings/.claude/rules/
-   diff -rq ~/.claude/skills/ ~/git/minorun365/my-claude-code-settings/.claude/skills/
-   diff ~/.claude/CLAUDE.md ~/git/minorun365/my-claude-code-settings/.claude/CLAUDE.md
+   diff -rq ~/.claude/rules/ ~/git/minorun365/my-claude-code-settings/claude/rules/
+   diff -rq ~/.claude/skills/ ~/git/minorun365/my-claude-code-settings/claude/skills/
+   diff ~/.claude/CLAUDE.md ~/git/minorun365/my-claude-code-settings/claude/CLAUDE.md
+   diff ~/.claude/settings.json ~/git/minorun365/my-claude-code-settings/claude/settings.json
    ```
 
 2. **同期実行**
    ```bash
-   rsync -av --delete ~/.claude/rules/ ~/git/minorun365/my-claude-code-settings/.claude/rules/
-   rsync -av --delete ~/.claude/skills/ ~/git/minorun365/my-claude-code-settings/.claude/skills/
-   cp ~/.claude/CLAUDE.md ~/git/minorun365/my-claude-code-settings/.claude/
+   rsync -av --delete ~/.claude/rules/ ~/git/minorun365/my-claude-code-settings/claude/rules/
+   rsync -av --delete ~/.claude/skills/ ~/git/minorun365/my-claude-code-settings/claude/skills/
+   cp ~/.claude/CLAUDE.md ~/git/minorun365/my-claude-code-settings/claude/
+   cp ~/.claude/settings.json ~/git/minorun365/my-claude-code-settings/claude/
    ```
 
 3. **mcpServers同期**（機密情報をマスクしてエクスポート）
@@ -101,16 +103,18 @@ Claude Codeの**共通設定のみ**をGitHubリポジトリと双方向同期�
 
 2. **差分確認**
    ```bash
-   diff -rq ~/git/minorun365/my-claude-code-settings/.claude/rules/ ~/.claude/rules/
-   diff -rq ~/git/minorun365/my-claude-code-settings/.claude/skills/ ~/.claude/skills/
-   diff ~/git/minorun365/my-claude-code-settings/.claude/CLAUDE.md ~/.claude/CLAUDE.md
+   diff -rq ~/git/minorun365/my-claude-code-settings/claude/rules/ ~/.claude/rules/
+   diff -rq ~/git/minorun365/my-claude-code-settings/claude/skills/ ~/.claude/skills/
+   diff ~/git/minorun365/my-claude-code-settings/claude/CLAUDE.md ~/.claude/CLAUDE.md
+   diff ~/git/minorun365/my-claude-code-settings/claude/settings.json ~/.claude/settings.json
    ```
 
 3. **同期実行**（ユーザー確認後）
    ```bash
-   rsync -av --delete ~/git/minorun365/my-claude-code-settings/.claude/rules/ ~/.claude/rules/
-   rsync -av --delete ~/git/minorun365/my-claude-code-settings/.claude/skills/ ~/.claude/skills/
-   cp ~/git/minorun365/my-claude-code-settings/.claude/CLAUDE.md ~/.claude/
+   rsync -av --delete ~/git/minorun365/my-claude-code-settings/claude/rules/ ~/.claude/rules/
+   rsync -av --delete ~/git/minorun365/my-claude-code-settings/claude/skills/ ~/.claude/skills/
+   cp ~/git/minorun365/my-claude-code-settings/claude/CLAUDE.md ~/.claude/
+   cp ~/git/minorun365/my-claude-code-settings/claude/settings.json ~/.claude/
    ```
 
 4. **mcpServers適用**（手動）
