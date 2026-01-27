@@ -1,8 +1,4 @@
 {
-  "statusLine": {
-    "type": "command",
-    "command": "~/.claude/statusline.sh"
-  },
   "permissions": {
     "allow": [
       "WebSearch",
@@ -25,18 +21,25 @@
       "Bash(echo:*)",
       "Bash(gh:*)",
       "Bash(aws:*)",
-      "mcp__aws-knowledge__*",
       "mcp__context7__*",
       "mcp__strands__*",
       "mcp__bedrock-agentcore-mcp-server__*",
       "mcp__github__get_*",
       "mcp__github__list_*",
       "mcp__github__search_*",
-      "mcp__chrome-devtools__list_*",
-      "mcp__chrome-devtools__take_snapshot",
-      "mcp__playwright__browser_snapshot",
-      "mcp__playwright__browser_console_messages",
-      "mcp__cdk-mcp-server__*"
+      "mcp__chrome-devtools__*",
+      "mcp__playwright__*",
+      "mcp__aws-mcp__aws___read_documentation",
+      "mcp__aws-mcp__aws___search_documentation",
+      "mcp__aws-mcp__aws___get_regional_availability",
+      "mcp__aws-mcp__aws___list_regions",
+      "mcp__aws-mcp__aws___recommend",
+      "mcp__aws-mcp__aws___retrieve_agent_sop",
+      "mcp__aws-iac-mcp-server__search_cdk_documentation",
+      "mcp__aws-iac-mcp-server__search_cloudformation_documentation",
+      "mcp__aws-iac-mcp-server__search_cdk_samples_and_constructs",
+      "mcp__aws-iac-mcp-server__read_iac_documentation_page",
+      "mcp__aws-iac-mcp-server__cdk_best_practices"
     ],
     "defaultMode": "default"
   },
@@ -62,5 +65,10 @@
         ]
       }
     ]
-  }
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "~/.claude/statusline.sh"
+  },
+  "language": "日本語（明るく元気、絵文字あり）"
 }
