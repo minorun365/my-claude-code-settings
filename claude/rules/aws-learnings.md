@@ -4,8 +4,8 @@
 
 ## Bedrock
 
-- クロスリージョン推論を使う場合、モデルIDのプレフィックスは `us.` になる
-- Bedrock AgentCoreはus-east-1とus-west-2で利用可能
+- クロスリージョン推論のプレフィックスはリージョンで異なる: `us.`（バージニア/オレゴン）、`jp.`（東京）
+- Bedrock AgentCoreは15リージョンで利用可能（us-east-1, us-west-2, ap-northeast-1 等）
 
 ## Lambda
 

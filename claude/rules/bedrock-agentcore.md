@@ -4,8 +4,14 @@ Bedrock AgentCore Runtime に関する学びを記録する。
 
 ## 利用可能リージョン
 
+15リージョンで利用可能（2026年1月時点）。主要なもの：
+
 - us-east-1（バージニア北部）
 - us-west-2（オレゴン）
+- ap-northeast-1（東京）
+- その他: us-east-2, eu-central-1, eu-west-1/2/3, eu-north-1, ap-south-1, ap-southeast-1/2, ap-northeast-2, ca-central-1, sa-east-1
+
+※Evaluations機能のみ一部リージョン限定（東京は非対応）
 
 ## JWT認証
 

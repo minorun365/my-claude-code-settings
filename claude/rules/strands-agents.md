@@ -58,12 +58,22 @@ agent = Agent(
 ```
 
 ### 利用可能なモデル（Bedrock）
-```python
-# Claude Sonnet 4.5（推奨）
-model = "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
 
-# Claude Haiku 4.5（高速・低コスト）
-model = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+クロスリージョン推論のプレフィックスはリージョンによって異なる：
+
+| リージョン | プレフィックス |
+|-----------|--------------|
+| us-east-1, us-west-2 | `us.` |
+| ap-northeast-1（東京） | `jp.` |
+
+```python
+# リージョンに応じてプレフィックスを自動判定
+import os
+
+def _get_model_id() -> str:
+    region = os.environ.get("AWS_REGION", "us-east-1")
+    prefix = "jp" if region == "ap-northeast-1" else "us"
+    return f"{prefix}.anthropic.claude-sonnet-4-5-20250929-v1:0"
 ```
 
 ## 実行方法

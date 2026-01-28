@@ -418,6 +418,17 @@ sandbox起動時に環境変数を設定:
 export TAVILY_API_KEY=$(grep TAVILY_API_KEY .env | cut -d= -f2) && npx ampx sandbox
 ```
 
+**調査方法**: `dotenv/config` で `.env` を読み込んでいてもRuntimeに環境変数が空で渡される場合がある。以下で確認可能：
+```bash
+aws bedrock-agentcore-control get-agent-runtime \
+  --agent-runtime-id {runtimeId} \
+  --region us-east-1 \
+  --query 'environmentVariables' --output json
+```
+空文字列（`""`）になっている場合はsandbox再起動が必要。
+
+**教訓**: フォールバックが効かないように見える場合、まずRuntime側の環境変数が実際にセットされているかを確認すること。CDKの設定（`process.env.TAVILY_API_KEY || ''`）は、sandbox起動時の `process.env` に値がなければ空文字列を渡してしまう。
+
 ### Tavily APIレートリミット: フォールバックが効かない
 
 **症状**: 複数APIキーのフォールバックを実装したが、枯渇したキーで止まり次のキーに切り替わらない

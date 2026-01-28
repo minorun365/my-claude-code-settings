@@ -1,6 +1,6 @@
 ---
-name: check-tavily-usage
-description: プロジェクトの.envにある全Tavily APIキーの無料クレジット残量を確認する
+name: check-tavily-credits
+description: Tavily APIキーの残りクレジットを確認（.envから取得）。※アプリの利用統計は /check-app-stats を使用
 argument-hint: [.envファイルのパス（省略可）]
 ---
 
