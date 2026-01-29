@@ -267,12 +267,33 @@ containerImageBuild = new ContainerImageBuild(stack, 'ImageBuild', {
 });
 
 // 古いイメージを自動削除（直近N件を保持）
-containerImageBuild.repository.addLifecycleRule({
+// ⚠️ repository は IRepository 型のため、型アサーションが必要
+import * as ecr from 'aws-cdk-lib/aws-ecr';
+
+(containerImageBuild.repository as ecr.Repository).addLifecycleRule({
   description: 'Keep last 5 images',
   maxImageCount: 5,
   rulePriority: 1,
 });
 ```
+
+#### ⚠️ `addLifecycleRule` の型エラーについて
+
+`containerImageBuild.repository` は `IRepository` インターフェース型で返される。`addLifecycleRule()` メソッドは `Repository` クラス固有のため、直接呼び出すとTypeScriptエラーになる。
+
+```typescript
+// ❌ TypeScriptエラー: Property 'addLifecycleRule' does not exist on type 'IRepository'
+containerImageBuild.repository.addLifecycleRule({...});
+
+// ✅ 型アサーションで解決
+(containerImageBuild.repository as ecr.Repository).addLifecycleRule({...});
+```
+
+**なぜこうなるか**: deploy-time-buildは外部から既存リポジトリを渡せるよう `IRepository` 型で公開している。実際には内部で `new Repository()` を生成しているため、型アサーションで動作する。
+
+**注意**: 型アサーションは型安全性を失う。将来ライブラリが変更されると壊れる可能性あり。
+
+**OSS改善提案**: [Issue #76](https://github.com/tmokmss/deploy-time-build/issues/76) で `lifecycleRules` オプション追加を提案済み。
 
 #### 比較表
 
