@@ -234,6 +234,74 @@ return Array.from(svgs).map((svg, index) => {
 
 **汎用パターン**: 外部ライブラリが生成する固定サイズSVGをレスポンシブにする場合に有効
 
+## モバイルUI対応（iOS Safari）
+
+### ドロップダウンメニューはhoverではなくクリック/タップベースで実装
+
+iOS Safariでは`:hover`がタップで正しく動作しない。CSS hover ベース（`group-hover`等）のドロップダウンは、スマホで開けない問題が発生する。
+
+```tsx
+// NG: CSS hoverベース（iOSで動作しない）
+<div className="relative group">
+  <button>メニュー ▼</button>
+  <div className="opacity-0 invisible group-hover:opacity-100 group-hover:visible">
+    <button>オプション1</button>
+    <button>オプション2</button>
+  </div>
+</div>
+
+// OK: useState + onClick ベース
+function Dropdown() {
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [isOpen, setIsOpen] = useState(false);
+
+  // 外側タップで閉じる（touchstartも必須）
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);  // iOS対応
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button onClick={() => setIsOpen(!isOpen)}>メニュー ▼</button>
+      {isOpen && (
+        <div className="absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg z-10">
+          <button
+            onClick={() => { setIsOpen(false); handleOption1(); }}
+            className="block w-full px-4 py-2 hover:bg-gray-100 active:bg-gray-200"
+          >
+            オプション1
+          </button>
+          <button
+            onClick={() => { setIsOpen(false); handleOption2(); }}
+            className="block w-full px-4 py-2 hover:bg-gray-100 active:bg-gray-200"
+          >
+            オプション2
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+**ポイント**:
+- `mousedown` だけでなく `touchstart` も必要（iOS対応）
+- `active:bg-gray-200` でタップ時のフィードバックを追加
+- メニュー選択後は `setIsOpen(false)` で閉じる
+
 ## SSEストリーミング処理
 
 ### 基本パターン
