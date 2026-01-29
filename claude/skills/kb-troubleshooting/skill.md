@@ -309,6 +309,40 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && fc-cache -fv
 ```
 
+### Marp CLI: 複数出力形式でテーマ設定が一部だけ反映される
+
+**症状**: PDF出力では正しいテーマが適用されるが、PPTX出力では常に同じテーマが使われる（環境ごとの切り替えが効かない）
+
+**原因**: 出力形式ごとに別関数を作成した際、一方の関数でテーマをハードコードしていた
+
+```python
+# NG: PDF関数は環境変数参照、PPTX関数はハードコード
+def generate_pdf(markdown: str) -> bytes:
+    theme_path = Path(__file__).parent / f"{THEME_NAME}.css"  # ✅ 環境変数
+    ...
+
+def generate_pptx(markdown: str) -> bytes:
+    theme_path = Path(__file__).parent / "border.css"  # ❌ ハードコード
+    ...
+```
+
+**解決策**: すべての出力関数で環境変数を一貫して使用する
+
+```python
+# OK: 両関数とも環境変数から取得
+THEME_NAME = os.environ.get("MARP_THEME", "border")  # デフォルトはborder
+
+def generate_pdf(markdown: str) -> bytes:
+    theme_path = Path(__file__).parent / f"{THEME_NAME}.css"
+    ...
+
+def generate_pptx(markdown: str) -> bytes:
+    theme_path = Path(__file__).parent / f"{THEME_NAME}.css"  # 同じ方式に統一
+    ...
+```
+
+**教訓**: 複数の出力形式を提供する場合、設定（テーマ、オプション等）の取得方法は**すべての関数で統一**する。コピペで関数を追加した際に、元の設定方法を変更し忘れるミスが起きやすい。
+
 ## SNS連携関連
 
 ### Twitter/Xシェア: ツイートボックスにテキストが入力されない
