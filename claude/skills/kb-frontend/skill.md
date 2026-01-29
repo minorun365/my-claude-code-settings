@@ -72,6 +72,49 @@ setMessages(prev =>
 </div>
 ```
 
+### ステータス表示の更新パターン（1つだけ表示）
+
+複数のステータスが表示されないよう、新しいステータスを追加する前に古いものを削除する：
+
+```typescript
+setMessages(prev => {
+  // 既存の進行中ステータス（完了以外）を削除
+  const filtered = prev.filter(
+    msg => !(msg.isStatus && msg.statusText?.startsWith('検索中') && msg.statusText !== '検索完了')
+  );
+  // 新しいステータスを追加
+  return [
+    ...filtered,
+    { role: 'assistant', content: '', isStatus: true, statusText: newStatus }
+  ];
+});
+```
+
+### フェードインアニメーションの発火（keyを変える）
+
+Reactでは `key` が変わると要素が再マウントされる。これを利用してアニメーションを発火：
+
+```tsx
+// keyにステータス内容を含めることで、内容が変わるたびにフェードインが発火
+<div
+  key={isSearching ? `search-${statusText}` : index}
+  className={`status-box ${isSearching ? 'animate-fade-in' : ''}`}
+>
+  {statusText}
+</div>
+```
+
+```css
+/* CSSアニメーション定義 */
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-in-out;
+}
+@keyframes fadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+```
+
 ## Marp Core（ブラウザ用）
 
 ### 基本的な使い方

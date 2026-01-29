@@ -150,6 +150,31 @@ async for event in agent.stream_async(prompt):
         final_result = event["result"]
 ```
 
+### ⚠️ current_tool_use の input はストリーミング中は文字列型
+
+`current_tool_use` イベントの `input` フィールドは、ストリーミング中は**不完全なJSON文字列**として徐々に構築される。辞書型を期待している場合はJSONパースが必要：
+
+```python
+elif "current_tool_use" in event:
+    tool_info = event["current_tool_use"]
+    tool_name = tool_info.get("name", "unknown")
+    tool_input = tool_info.get("input", {})
+
+    # inputが文字列の場合はJSONパースを試みる
+    if isinstance(tool_input, str):
+        try:
+            import json
+            tool_input = json.loads(tool_input)
+        except json.JSONDecodeError:
+            pass  # パースできない場合はそのまま（不完全なJSON）
+
+    # パース成功時のみ辞書として扱える
+    if isinstance(tool_input, dict) and "query" in tool_input:
+        print(f"Search query: {tool_input['query']}")
+```
+
+**ポイント**: ストリーミング中はイベントが複数回発火し、`{"query"` → `{"query": "検索` → `{"query": "検索ワード"}` のように徐々に完成する。完全なJSONになったタイミングでのみパースが成功する。
+
 ---
 
 ## ツールの定義
