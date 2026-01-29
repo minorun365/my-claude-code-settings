@@ -535,6 +535,45 @@ Lambda/AgentCoreの問題を調査する際は、AWS CLIでログを確認：
 aws logs tail /aws/bedrock-agentcore/runtime/RUNTIME_NAME --follow
 ```
 
+### CloudWatch Logs Insights: タイムゾーン変換で時刻がズレる
+
+**症状**: `datefloor(@timestamp + 9h, 1h)` でJSTに変換しているのに、結果の時刻がおかしい（古い時刻が返る）
+
+**原因**: CloudWatch Logs Insightsの `datefloor(@timestamp + 9h, ...)` は挙動が不安定
+
+**解決策**: UTCのまま集計してから、スクリプト側でJSTに変換する
+
+```bash
+# クエリはUTCで集計
+--query-string 'stats count(*) by datefloor(@timestamp, 1h) as hour_utc | sort hour_utc asc'
+
+# 結果をスクリプト側でJSTに変換
+JST_HOUR=$(( (10#$UTC_HOUR + 9) % 24 ))
+```
+
+### AgentCore: OTELログ形式でinvocationがカウントできない
+
+**症状**: `filter @message like /invocations/` でログをカウントしているが、件数が0になる
+
+**原因**: OTEL有効時、ログ形式がJSON（OTEL形式）に変わり、従来のパターンマッチが効かない
+
+**解決策**: `session.id` をparseしてユニークカウントする
+
+```
+# 旧方式（OTELログでは効かない）
+filter @message like /invocations/ or @message like /POST/
+
+# 新方式（OTEL対応）
+parse @message /"session\.id":\s*"(?<sid>[^"]+)"/
+| filter ispresent(sid)
+| stats count_distinct(sid) as sessions
+```
+
+**補足**:
+- OTELログは `otel-rt-logs` ストリームに出力される
+- 各セッションは `attributes."session.id"` で識別される
+- `count_distinct(sid)` でユニークセッション数をカウント
+
 ### Marpテーマ確認
 
 スライドに適用されているテーマを確認するには、ブラウザDevToolsで:

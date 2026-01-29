@@ -223,6 +223,43 @@ aws xray update-trace-segment-destination --destination CloudWatchLogs --region 
 1. CloudWatch Console → **Bedrock AgentCore GenAI Observability**
 2. Agents View / Sessions View / Traces View で確認可能
 
+### OTELログ形式
+
+OTEL有効時、ログは `otel-rt-logs` ストリームにJSON形式で出力される。各セッションは `session.id` フィールドで識別される。
+
+```json
+{
+  "resource": { ... },
+  "scope": { "name": "strands.telemetry.tracer" },
+  "timeUnixNano": 1769681571307833653,
+  "body": {
+    "input": { "messages": [...] },
+    "output": { "messages": [...] }
+  },
+  "attributes": {
+    "session.id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+  }
+}
+```
+
+### CloudWatch Logs Insightsでのセッションカウント
+
+OTELログからセッション数をカウントするクエリ：
+
+```
+parse @message /"session\.id":\s*"(?<sid>[^"]+)"/
+| filter ispresent(sid)
+| stats count_distinct(sid) as sessions by datefloor(@timestamp, 1h) as hour_utc
+| sort hour_utc asc
+```
+
+**注意**: `datefloor(@timestamp + 9h, ...)` を使うと挙動が不安定。UTCで集計してからスクリプト側でJSTに変換する。
+
+```bash
+# UTCの時刻をJSTに変換
+JST_HOUR=$(( (10#$UTC_HOUR + 9) % 24 ))
+```
+
 ## CDK（@aws-cdk/aws-bedrock-agentcore-alpha）
 
 ### Runtime作成（推奨パターン）
