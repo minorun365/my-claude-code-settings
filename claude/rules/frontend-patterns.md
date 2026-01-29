@@ -187,6 +187,7 @@ return Array.from(svgs).map((svg, index) => {
 
 ## SSEストリーミング処理
 
+### 基本パターン
 ```typescript
 const reader = response.body?.getReader();
 const decoder = new TextDecoder();
@@ -204,11 +205,129 @@ while (true) {
     if (line.startsWith('data: ')) {
       const data = line.slice(6);
       if (data === '[DONE]') return;
-      const event = JSON.parse(data);
-      // イベント処理
+      try {
+        const event = JSON.parse(data);
+        handleEvent(event);
+      } catch {
+        // JSONパースエラーは無視
+      }
     }
   }
 }
+```
+
+### イベントハンドリング
+```typescript
+function handleEvent(event) {
+  // APIによってcontent/dataのどちらかにペイロードが入る
+  const textValue = event.content || event.data;
+
+  switch (event.type) {
+    case 'text':
+      onText(textValue);
+      break;
+    case 'tool_use':
+      onToolUse(textValue);  // ツール名が返る
+      break;
+    case 'markdown':
+      onMarkdown(textValue);
+      break;
+    case 'error':
+      onError(new Error(event.error || event.message || textValue));
+      break;
+  }
+}
+```
+
+### エラーハンドリング
+```typescript
+// ストリーミング中のエラー
+case 'error':
+  if (event.error || event.message) {
+    callbacks.onError(new Error(event.error || event.message));
+  }
+  break;
+
+// HTTPエラー
+const response = await fetch(url, options);
+if (!response.ok) {
+  throw new Error(`API Error: ${response.status} ${response.statusText}`);
+}
+```
+
+### モック実装（ローカル開発用）
+
+```typescript
+export async function invokeAgentMock(prompt, callbacks) {
+  const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+  // 思考過程をストリーミング
+  const thinkingText = `${prompt}について考えています...`;
+  for (const char of thinkingText) {
+    callbacks.onText(char);
+    await sleep(20);
+  }
+
+  callbacks.onStatus('生成中...');
+  await sleep(1000);
+
+  callbacks.onMarkdown('# 生成結果\n\n...');
+  callbacks.onComplete();
+}
+
+// 環境変数で切り替え
+const useMock = import.meta.env.VITE_USE_MOCK === 'true';
+const invoke = useMock ? invokeAgentMock : invokeAgent;
+```
+
+### PDF生成（Base64デコード・ダウンロード）
+
+```typescript
+export async function exportPdf(markdown: string): Promise<Blob> {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { /* 認証ヘッダー等 */ },
+    body: JSON.stringify({ action: 'export_pdf', markdown }),
+  });
+
+  const reader = response.body?.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        const event = JSON.parse(line.slice(6));
+        if (event.type === 'pdf' && event.data) {
+          // Base64デコードしてBlobを返す
+          const binaryString = atob(event.data);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          return new Blob([bytes], { type: 'application/pdf' });
+        }
+      }
+    }
+  }
+  throw new Error('PDF生成に失敗しました');
+}
+
+// ダウンロード処理
+const blob = await exportPdf(markdown);
+const url = URL.createObjectURL(blob);
+const a = document.createElement('a');
+a.href = url;
+a.download = 'slide.pdf';
+a.click();
+URL.revokeObjectURL(url);
 ```
 
 ## Amplify UI React
