@@ -14,6 +14,15 @@
 - 開発中に生成するドキュメントにAPIキーなどの機密情報を書いてもいいけど、必ず .gitignore に追加して。
 - コミットメッセージは1行の日本語でシンプルに。Claude Codeとの協働の痕跡は残さないで。
 
-# ナレッジベース（~/.claude/rules/）
-- 作業開始時や関連トピックに取り組む際、該当するルールファイルを参照
-- プロジェクト固有でない汎用的な学びを得たら追記する
+# ナレッジベース（skillsで管理）
+
+関連トピックに取り組む際、以下のスキルを呼び出してナレッジを参照する：
+
+| スキル | 内容 |
+|--------|------|
+| `/kb-strands-agentcore` | Strands Agents + Bedrock AgentCore（エージェント開発、CDK、Observability） |
+| `/kb-amplify-cdk` | Amplify Gen2 + CDK（sandbox、本番デプロイ、Hotswap） |
+| `/kb-frontend` | フロントエンド（React、Tailwind、Marp、SSE、Amplify UI） |
+| `/kb-troubleshooting` | トラブルシューティング集（AWS、フロントエンド、Python、LLMアプリ）|
+
+プロジェクト固有でない汎用的な学びを得たら `/sync-knowledge` で追記する。

@@ -1,3 +1,9 @@
+---
+name: kb-frontend
+description: フロントエンド開発のナレッジ。React/Tailwind/Marp/SSE/Amplify UI等
+user-invocable: true
+---
+
 # フロントエンド開発パターン
 
 React/TypeScript/Tailwindを使ったフロントエンド開発の学びを記録する。
@@ -631,5 +637,3 @@ img_clean.save('ogp.jpg', 'JPEG', quality=85)
 画像URLにバージョンパラメータを追加してキャッシュを回避：
 - `ogp.jpg?v=2` のようにクエリパラメータを追加
 - 変更後は [Twitter Card Validator](https://cards-dev.twitter.com/validator) で再検証
-
-**詳細なトラブルシューティング**: `~/.claude/rules/troubleshooting.md` の「OGP/Twitterカード」セクションを参照

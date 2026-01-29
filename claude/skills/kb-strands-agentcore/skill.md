@@ -1,3 +1,9 @@
+---
+name: kb-strands-agentcore
+description: Strands Agents + Bedrock AgentCore のナレッジ。エージェント開発、ツール定義、CDK、Observability等
+user-invocable: true
+---
+
 # Strands Agents + AgentCore ナレッジ
 
 AWS が提供する AI エージェントフレームワーク「Strands Agents」とサーバーレスランタイム「Bedrock AgentCore」に関する学びを記録する。

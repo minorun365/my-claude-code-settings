@@ -1,3 +1,9 @@
+---
+name: kb-amplify-cdk
+description: Amplify Gen2 + CDK のナレッジ。sandbox管理、本番デプロイ、Hotswap等
+user-invocable: true
+---
+
 # Amplify Gen2 + CDK ナレッジ
 
 Amplify Gen2とCDKの統合に関する学びを記録する。

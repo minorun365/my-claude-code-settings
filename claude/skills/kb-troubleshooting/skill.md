@@ -1,3 +1,9 @@
+---
+name: kb-troubleshooting
+description: トラブルシューティング集。AWS/フロントエンド/Python/LLMアプリの問題解決
+user-invocable: true
+---
+
 # トラブルシューティング集
 
 プロジェクト横断で遭遇した問題と解決策を記録する。
@@ -33,7 +39,7 @@ resources: [
 ]
 ```
 
-### AgentCore Observability: トレースが出力されない ✅ 解決済
+### AgentCore Observability: トレースが出力されない
 
 **症状**: AgentCore Observability ダッシュボードでメトリクスが全て0、トレースが表示されない
 
@@ -132,7 +138,7 @@ aws amplify update-app \
 
 ## フロントエンド関連
 
-### OGP/Twitterカード: 画像が表示されない ✅ 解決済
+### OGP/Twitterカード: 画像が表示されない
 
 **症状**: TwitterでURLをシェアしてもカード画像が表示されない
 
@@ -163,41 +169,6 @@ aws amplify update-app \
 4. **キャッシュ対策**
    - [x] 画像URLにバージョンパラメータ追加（`?v=2` など）
    - [x] [Twitter Card Validator](https://cards-dev.twitter.com/validator) で再検証
-
-**推奨設定（summaryカード）**:
-```html
-<!-- OGP -->
-<meta property="og:title" content="タイトル" />
-<meta property="og:description" content="説明" />
-<meta property="og:type" content="website" />
-<meta property="og:url" content="https://example.com/" />
-<meta property="og:image" content="https://example.com/ogp.jpg?v=2" />
-<meta property="og:image:secure_url" content="https://example.com/ogp.jpg?v=2" />
-<meta property="og:image:width" content="512" />
-<meta property="og:image:height" content="512" />
-<meta property="og:image:type" content="image/jpeg" />
-
-<!-- Twitter Card -->
-<meta name="twitter:card" content="summary" />
-<meta name="twitter:site" content="@username" />
-<meta name="twitter:title" content="タイトル" />
-<meta name="twitter:description" content="説明" />
-<meta name="twitter:image" content="https://example.com/ogp.jpg?v=2" />
-```
-
-**画像のExif削除（Python）**:
-```python
-from PIL import Image
-img = Image.open('original.jpg')
-img_clean = Image.new('RGB', img.size)
-img_clean.paste(img)
-img_clean.save('ogp.jpg', 'JPEG', quality=85)
-```
-
-**重要ポイント**:
-- `og:image` 系タグだけでなく、`twitter:*` タグも明示的に指定する
-- 画像URLにバージョンパラメータをつけてキャッシュを回避する
-- 変更後は Twitter Card Validator で再検証する
 
 **注意**: Twitterカードのキャッシュは最大7日間保持される。修正後すぐに反映されない場合がある。
 
@@ -250,18 +221,13 @@ setMessages(prev =>
 </div>
 ```
 
-### Marp Core: iOS Safari/Chromeでスライドが見切れる ✅ 解決済
+### Marp Core: iOS Safari/Chromeでスライドが見切れる
 
 **症状**: スマホ実機（iOS Safari/Chrome）でスライドプレビューが画面幅に収まらず見切れる。Chrome DevToolsのエミュレーションでは再現しない。
 
 **原因**: WebKit Bug 23113（15年以上放置されているバグ）
 - SVGの`<foreignObject>`内のHTMLがviewBox変換を正しく継承しない
 - iOS上のすべてのブラウザはWebKitエンジンを使うため、Chromeでも発生
-
-**なぜDevToolsで再現しないか**:
-- DevToolsはデスクトップChromeのBlinkエンジンを使用
-- iOSエミュレーションしても内部エンジンは変わらない
-- `100vw`の計算方法も異なる（DevToolsはスクロールバーを含まない）
 
 **解決策**: Marp公式の`marpit-svg-polyfill`を使用
 
@@ -276,7 +242,6 @@ import { observe } from '@marp-team/marpit-svg-polyfill';
 function SlidePreview({ markdown }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Safari/iOS WebKit向けのpolyfillを適用
   useEffect(() => {
     if (containerRef.current) {
       const cleanup = observe(containerRef.current);
@@ -291,13 +256,6 @@ function SlidePreview({ markdown }) {
   );
 }
 ```
-
-**補足**: polyfillは`transform: scale()`を使ってスケーリングをシミュレートする。Safari検出（`navigator.vendor === "Apple Computer, Inc."`）で動作。
-
-**参考リンク**:
-- [marpit-svg-polyfill](https://github.com/marp-team/marpit-svg-polyfill)
-- [WebKit Bug 23113](https://bugs.webkit.org/show_bug.cgi?id=23113)
-- [Marpit Inline SVG](https://marpit.marp.app/inline-svg)
 
 ### SSE: チャットの吹き出しが空のまま
 
@@ -351,11 +309,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && fc-cache -fv
 ```
 
-**補足**: `fonts-noto-cjk`はNoto Sans CJK（中国語・日本語・韓国語）フォントを含む
-
 ## SNS連携関連
 
-### Twitter/Xシェア: ツイートボックスにテキストが入力されない ✅ 解決済
+### Twitter/Xシェア: ツイートボックスにテキストが入力されない
 
 **症状**: シェアリンクをクリックしてTwitterを開いても、ツイートボックスにテキストが何も入力されていない
 
@@ -370,11 +326,6 @@ url = f"https://x.com/compose/post?text={encoded_text}"
 # OK: Web Intent形式（textパラメータが確実に反映される）
 url = f"https://twitter.com/intent/tweet?text={encoded_text}"
 ```
-
-**ポイント**:
-- `intent/tweet` はシェアボタン用に設計された公式のWeb Intent
-- 日本語は `urllib.parse.quote(text, safe='')` でURLエンコードする
-- `#`（ハッシュタグ）も `%23` にエンコードされるが、Twitter側で正しく解釈される
 
 ## LLMアプリ関連
 
@@ -418,17 +369,6 @@ sandbox起動時に環境変数を設定:
 export TAVILY_API_KEY=$(grep TAVILY_API_KEY .env | cut -d= -f2) && npx ampx sandbox
 ```
 
-**調査方法**: `dotenv/config` で `.env` を読み込んでいてもRuntimeに環境変数が空で渡される場合がある。以下で確認可能：
-```bash
-aws bedrock-agentcore-control get-agent-runtime \
-  --agent-runtime-id {runtimeId} \
-  --region us-east-1 \
-  --query 'environmentVariables' --output json
-```
-空文字列（`""`）になっている場合はsandbox再起動が必要。
-
-**教訓**: フォールバックが効かないように見える場合、まずRuntime側の環境変数が実際にセットされているかを確認すること。CDKの設定（`process.env.TAVILY_API_KEY || ''`）は、sandbox起動時の `process.env` に値がなければ空文字列を渡してしまう。
-
 ### Tavily APIレートリミット: フォールバックが効かない
 
 **症状**: 複数APIキーのフォールバックを実装したが、枯渇したキーで止まり次のキーに切り替わらない
@@ -440,8 +380,6 @@ aws bedrock-agentcore-control get-agent-runtime \
 if "rate limit" in error_str or "429" in error_str or "quota" in error_str or "usage limit" in error_str:
     continue  # 次のキーで再試行
 ```
-
-**教訓**: 外部APIのエラーメッセージは実際にエラーを発生させて確認すること。ドキュメントと異なるメッセージが返る場合がある。
 
 ## Amplify sandbox関連
 
@@ -568,11 +506,6 @@ parse @message /"session\.id":\s*"(?<sid>[^"]+)"/
 | filter ispresent(sid)
 | stats count_distinct(sid) as sessions
 ```
-
-**補足**:
-- OTELログは `otel-rt-logs` ストリームに出力される
-- 各セッションは `attributes."session.id"` で識別される
-- `count_distinct(sid)` でユニークセッション数をカウント
 
 ### Marpテーマ確認
 
