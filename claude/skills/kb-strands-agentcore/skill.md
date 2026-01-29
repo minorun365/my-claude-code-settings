@@ -175,6 +175,24 @@ elif "current_tool_use" in event:
 
 **ポイント**: ストリーミング中はイベントが複数回発火し、`{"query"` → `{"query": "検索` → `{"query": "検索ワード"}` のように徐々に完成する。完全なJSONになったタイミングでのみパースが成功する。
 
+**⚠️ 重要**: フロントエンドにイベントを転送する場合、**必要なデータが取得できるまでイベントを送信しない**ことが重要。最初の「空のinput」でイベント送信すると、フロントエンドで不完全な状態が表示され、後から来る完全なデータが重複防止ロジックでスキップされる問題が起きる。
+
+```python
+# ❌ NG: クエリがなくてもイベント送信 → 空のステータスが先に表示される
+if tool_name == "web_search" and isinstance(tool_input, dict) and "query" in tool_input:
+    yield {"type": "tool_use", "data": tool_name, "query": tool_input["query"]}
+else:
+    yield {"type": "tool_use", "data": tool_name}  # ← これが先に送信される
+
+# ✅ OK: web_searchはクエリ取得時のみ送信
+if tool_name == "web_search":
+    if isinstance(tool_input, dict) and "query" in tool_input:
+        yield {"type": "tool_use", "data": tool_name, "query": tool_input["query"]}
+    # クエリがない場合は送信しない（完全なJSONを待つ）
+else:
+    yield {"type": "tool_use", "data": tool_name}
+```
+
 ---
 
 ## ツールの定義
