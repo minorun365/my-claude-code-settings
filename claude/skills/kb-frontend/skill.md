@@ -630,6 +630,24 @@ PDF生成時は `--theme` オプションでCSSファイルを指定:
 cmd = ["marp", md_path, "--pdf", "--theme", str(theme_path)]
 ```
 
+### Marp CLI出力オプション
+
+| オプション | 出力形式 | 依存 | 編集可能 |
+|-----------|---------|------|---------|
+| `--pdf` | PDF | なし | ❌ |
+| `--pptx` | PPTX | なし | ❌ |
+| `--pptx-editable` | PPTX（編集可能） | **LibreOffice必須** | ✅ |
+| `--html` | HTML | なし | - |
+
+**注意**: `--pptx-editable` はLibreOfficeの `soffice` バイナリに依存する。Dockerコンテナ等でLibreOfficeがインストールされていない環境では以下のエラーが発生：
+
+```
+[EXPERIMENTAL] Converting to editable PPTX is experimental feature.
+[ERROR] Failed converting Markdown. (LibreOffice soffice binary could not be found.)
+```
+
+→ LibreOffice不要な環境では `--pptx`（標準PPTX）を使用する。
+
 ### Marp記法の注意点
 
 #### `==ハイライト==` 記法は使用禁止
