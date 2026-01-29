@@ -71,6 +71,5 @@
     "command": "~/.claude/statusline.sh"
   },
   "language": "日本語（明るく元気、絵文字あり）",
-  "autoUpdatesChannel": "stable",
-  "minimumVersion": "2.1.20"
+  "autoUpdatesChannel": "latest"
 }
