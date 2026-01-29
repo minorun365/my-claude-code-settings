@@ -236,6 +236,52 @@ const artifact = isSandbox
     });
 ```
 
+### ⚠️ コンテナイメージのタグ指定に関する重要な注意
+
+**`tag: 'latest'` を指定すると、コード変更時にAgentCoreランタイムが更新されない問題が発生する。**
+
+#### 問題の仕組み
+
+1. コードをプッシュ → ECRに新イメージがプッシュ（タグ: `latest`）
+2. CDKがCloudFormationテンプレートを生成
+3. CloudFormation: 「タグは同じ `latest` だから変更なし」と判断
+4. **ターゲットリソース（AgentCore Runtime等）が更新されない**
+
+#### NG: 固定タグを使用
+
+```typescript
+containerImageBuild = new ContainerImageBuild(stack, 'ImageBuild', {
+  directory: path.join(__dirname, 'runtime'),
+  platform: Platform.LINUX_ARM64,
+  tag: 'latest',  // ❌ CloudFormationが変更を検知できない
+});
+```
+
+#### OK: タグを省略してassetHashを使用
+
+```typescript
+containerImageBuild = new ContainerImageBuild(stack, 'ImageBuild', {
+  directory: path.join(__dirname, 'runtime'),
+  platform: Platform.LINUX_ARM64,
+  // tag を省略 → assetHashベースのタグが自動生成される
+});
+
+// 古いイメージを自動削除（直近N件を保持）
+containerImageBuild.repository.addLifecycleRule({
+  description: 'Keep last 5 images',
+  maxImageCount: 5,
+  rulePriority: 1,
+});
+```
+
+#### 比較表
+
+| 項目 | `tag: 'latest'` | タグ省略（推奨） |
+|------|-----------------|-----------------|
+| デプロイ時の更新 | ❌ 反映されないことがある | ✅ 常に反映される |
+| ECRイメージ数 | 1つのみ | 蓄積（要Lifecycle Policy） |
+| ロールバック | ❌ 不可 | ✅ 可能 |
+
 ### 参考
 
 - [deploy-time-build](https://github.com/tmokmss/deploy-time-build)
