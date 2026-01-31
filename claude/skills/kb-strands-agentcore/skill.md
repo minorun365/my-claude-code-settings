@@ -626,6 +626,67 @@ uv add 'botocore[crt]'
 - 同期コンテキスト → `stream()`
 - 非同期コンテキスト（async/await） → `stream_async()`
 
+### Kimi K2 Thinking: ツール呼び出しがreasoningText内に埋め込まれる
+
+**症状**: Kimi K2でツールを呼び出そうとしたが、`current_tool_use`イベントが発火せず、フロントエンドに何も表示されずに終了する
+
+**原因**: ツール呼び出しが`reasoningText`（思考プロセス）内にテキストとして埋め込まれ、実際のtool_useイベントに変換されない。`finish_reason: end_turn`で即座に終了する。
+
+**ログの特徴**:
+```json
+"reasoningText": {
+  "text": "...Web検索します。 <|tool_calls_section_begin|> <|tool_call_begin|> functions.web_search:0 <|tool_call_argument_begin|> {\"query\": \"...\"} <|tool_call_end|> <|tool_calls_section_end|>"
+}
+"finish_reason": "end_turn"
+```
+
+**解決策**: `reasoningText`内にツール呼び出しの痕跡がある場合もリトライ対象にする
+
+```python
+# resultイベントのreasoningContent処理部分
+if hasattr(reasoning_text, 'text') and reasoning_text.text:
+    text = reasoning_text.text
+    # ツール呼び出しがテキストとして埋め込まれている場合を検出
+    if "<|tool_call" in text or "functions.web_search" in text or "functions.output_slide" in text:
+        tool_name_corrupted = True
+        print(f"[WARN] Tool call found in reasoning text (retry ...)")
+```
+
+**ポイント**:
+- `<|tool_call`や`functions.xxx`などの痕跡で検出
+- ツール名破損と同じリトライロジックで対応可能
+- 検出したら`tool_name_corrupted = True`にしてリトライ
+
+### Kimi K2 Thinking: ツール名破損とリトライ
+
+Kimi K2ではツール呼び出し時にツール名が破損することがある（内部トークン `<|tooluse_end|>` 等が混入）。破損を検出してリトライする仕組みが必要。
+
+```python
+VALID_TOOL_NAMES = {"web_search", "output_slide", "generate_tweet_url"}
+MAX_RETRY_COUNT = 5
+
+def is_tool_name_corrupted(tool_name: str) -> bool:
+    """ツール名が破損しているかチェック"""
+    if not tool_name:
+        return False
+    if tool_name not in VALID_TOOL_NAMES:
+        return True
+    if "<|" in tool_name or "tooluse_" in tool_name:
+        return True
+    return False
+
+# ストリーミング処理内で
+if is_tool_name_corrupted(tool_name):
+    tool_name_corrupted = True
+    agent.messages.clear()  # 破損した履歴をクリア
+    continue
+```
+
+**ポイント**:
+- 破損検出時は `agent.messages.clear()` で会話履歴をクリアしてからリトライ
+- 最大リトライ回数を設定してループを防止
+- Claudeモデルでは発生しないため、`model_type == "kimi"` でガード
+
 ---
 
 ## 参考リンク
