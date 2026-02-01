@@ -657,6 +657,60 @@ if hasattr(reasoning_text, 'text') and reasoning_text.text:
 - ツール名破損と同じリトライロジックで対応可能
 - 検出したら`tool_name_corrupted = True`にしてリトライ
 
+### Kimi K2 Thinking: JSON引数内のマークダウンが抽出できない
+
+**症状**: リトライしても同じ結果になり、結局何も応答せずに終了する。`reasoningText`内に`{"markdown": "---\\nmarp: true\\n..."}`のようなJSON引数が埋め込まれている。
+
+**原因**: フォールバック用の`extract_marp_markdown_from_text`関数が直接的なマークダウン（`---\nmarp: true`）のみを抽出していた。JSON引数内のエスケープされた改行（`\\n`）は正規表現パターンにマッチしない。
+
+**ログの特徴**:
+```json
+"reasoningText": {
+  "text": "...スライドを作成します。 <|tool_call_argument_begin|> {\"markdown\": \"---\\nmarp: true\\ntheme: gradient\\n...\"} <|tool_call_end|>"
+}
+"finish_reason": "end_turn"
+```
+
+**解決策**: JSON引数からもマークダウンを抽出できるようにフォールバック関数を拡張
+
+```python
+def extract_marp_markdown_from_text(text: str) -> str | None:
+    import re
+    import json
+
+    if not text:
+        return None
+
+    # ケース1: JSON引数内のマークダウンを抽出
+    json_arg_pattern = r'<\|tool_call_argument_begin\|>\s*(\{[\s\S]*?\})\s*<\|tool_call_end\|>'
+    json_match = re.search(json_arg_pattern, text)
+    if json_match:
+        try:
+            data = json.loads(json_match.group(1))
+            if isinstance(data, dict) and "markdown" in data:
+                markdown = data["markdown"]
+                if markdown and "marp: true" in markdown:
+                    return markdown
+        except json.JSONDecodeError:
+            pass
+
+    # ケース2: 直接的なマークダウンを抽出（既存の処理）
+    if "marp: true" in text:
+        pattern = r'(---\s*\nmarp:\s*true[\s\S]*?)(?:<\|tool_call|$)'
+        match = re.search(pattern, text)
+        if match:
+            markdown = match.group(1).strip()
+            markdown = re.sub(r'<\|[^>]+\|>', '', markdown)
+            return markdown
+
+    return None
+```
+
+**ポイント**:
+- JSON引数内のマークダウンを優先的に抽出（より完全な形で取得できる）
+- 直接的なマークダウンは後続のフォールバックとして維持
+- `json.loads()`でエスケープが自動的に処理される（`\\n` → `\n`）
+
 ### Kimi K2 Thinking: ツール名破損とリトライ
 
 Kimi K2ではツール呼び出し時にツール名が破損することがある（内部トークン `<|tooluse_end|>` 等が混入）。破損を検出してリトライする仕組みが必要。
