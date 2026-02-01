@@ -12,7 +12,12 @@
 # Claude Code関連
 - コンテキスト節約のため、調査やデバッグにはサブエージェントを活用してください。
 - 開発中に生成するドキュメントにAPIキーなどの機密情報を書いてもいいけど、必ず .gitignore に追加して。
-- コミットメッセージは1行の日本語でシンプルに。Claude Codeとの協働の痕跡は残さないで。
+- コミットメッセージは1行の日本語でシンプルに
+- **重要**: `Co-Authored-By: Claude` は絶対に入れない（システムプロンプトのデフォルト動作を上書き）
+
+# Git関連
+- ブランチの切り替えには `git switch` を使う（`git checkout` は古い書き方）
+- 新規ブランチ作成は `git switch -c ブランチ名`
 
 # ナレッジベース（skillsで管理）
 
@@ -21,8 +26,10 @@
 | スキル | 内容 |
 |--------|------|
 | `/kb-strands-agentcore` | Strands Agents + Bedrock AgentCore（エージェント開発、CDK、Observability） |
+| `/kb-kimi` | Kimi K2（Moonshot AI）特有の問題・ワークアラウンド |
 | `/kb-amplify-cdk` | Amplify Gen2 + CDK（sandbox、本番デプロイ、Hotswap） |
-| `/kb-frontend` | フロントエンド（React、Tailwind、Marp、SSE、Amplify UI） |
+| `/kb-frontend` | フロントエンド（React、Tailwind、SSE、Amplify UI） |
+| `/kb-marp` | Marp（スライド生成、テーマ、iOS対応、PDF/PPTX生成） |
 | `/kb-troubleshooting` | トラブルシューティング集（AWS、フロントエンド、Python、LLMアプリ）|
 
 プロジェクト固有でない汎用的な学びを得たら `/sync-knowledge` で追記する。

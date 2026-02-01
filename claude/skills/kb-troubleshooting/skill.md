@@ -195,67 +195,9 @@ setMessages(prev =>
 );
 ```
 
-### Tailwind × Marp: invert クラスの競合
+### Marp関連
 
-**症状**: Marpのダークテーマ（`class: invert`）が正しく表示されない
-
-**原因**: Tailwind CSSの`.invert`ユーティリティ（`filter: invert(100%)`）が適用される
-
-**解決策**: CSSで上書き
-```css
-.marpit section.invert {
-  filter: none !important;
-}
-```
-
-### Marp Core: スライドのCSSが適用されない
-
-**症状**: スライドのスタイルが正しく表示されない
-
-**原因**: `section`要素だけを抽出してDOM構造が崩れた
-
-**解決策**: SVG要素をそのまま使い、`div.marpit`でラップする
-```tsx
-<div className="marpit">
-  <div dangerouslySetInnerHTML={{ __html: svg.outerHTML }} />
-</div>
-```
-
-### Marp Core: iOS Safari/Chromeでスライドが見切れる
-
-**症状**: スマホ実機（iOS Safari/Chrome）でスライドプレビューが画面幅に収まらず見切れる。Chrome DevToolsのエミュレーションでは再現しない。
-
-**原因**: WebKit Bug 23113（15年以上放置されているバグ）
-- SVGの`<foreignObject>`内のHTMLがviewBox変換を正しく継承しない
-- iOS上のすべてのブラウザはWebKitエンジンを使うため、Chromeでも発生
-
-**解決策**: Marp公式の`marpit-svg-polyfill`を使用
-
-```bash
-npm install @marp-team/marpit-svg-polyfill
-```
-
-```tsx
-import { useEffect, useRef } from 'react';
-import { observe } from '@marp-team/marpit-svg-polyfill';
-
-function SlidePreview({ markdown }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (containerRef.current) {
-      const cleanup = observe(containerRef.current);
-      return cleanup;
-    }
-  }, [markdown]);
-
-  return (
-    <div ref={containerRef}>
-      {/* Marpスライドを表示 */}
-    </div>
-  );
-}
-```
+Marp関連のトラブルシューティングは `/kb-marp` スキルを参照してください。
 
 ### SSE: チャットの吹き出しが空のまま
 
@@ -281,67 +223,9 @@ const textValue = event.content || event.data;
 uv add 'botocore[crt]'
 ```
 
-### Marp CLI: PDF出力でエラー
+### Marp CLI関連
 
-**症状**: Dockerコンテナ内でPDF生成に失敗
-
-**原因**: Chromiumがインストールされていない
-
-**解決策**: Dockerfileに追加
-```dockerfile
-RUN apt-get update && apt-get install -y chromium
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-```
-
-### Marp CLI: PDF日本語文字化け（豆腐文字）
-
-**症状**: PDFをダウンロードすると日本語が□（豆腐）で表示される
-
-**原因**: Dockerコンテナに日本語フォントがない
-
-**解決策**: Dockerfileに日本語フォントを追加
-```dockerfile
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    chromium \
-    fonts-noto-cjk \
-    && rm -rf /var/lib/apt/lists/* \
-    && fc-cache -fv
-```
-
-### Marp CLI: 複数出力形式でテーマ設定が一部だけ反映される
-
-**症状**: PDF出力では正しいテーマが適用されるが、PPTX出力では常に同じテーマが使われる（環境ごとの切り替えが効かない）
-
-**原因**: 出力形式ごとに別関数を作成した際、一方の関数でテーマをハードコードしていた
-
-```python
-# NG: PDF関数は環境変数参照、PPTX関数はハードコード
-def generate_pdf(markdown: str) -> bytes:
-    theme_path = Path(__file__).parent / f"{THEME_NAME}.css"  # ✅ 環境変数
-    ...
-
-def generate_pptx(markdown: str) -> bytes:
-    theme_path = Path(__file__).parent / "border.css"  # ❌ ハードコード
-    ...
-```
-
-**解決策**: すべての出力関数で環境変数を一貫して使用する
-
-```python
-# OK: 両関数とも環境変数から取得
-THEME_NAME = os.environ.get("MARP_THEME", "border")  # デフォルトはborder
-
-def generate_pdf(markdown: str) -> bytes:
-    theme_path = Path(__file__).parent / f"{THEME_NAME}.css"
-    ...
-
-def generate_pptx(markdown: str) -> bytes:
-    theme_path = Path(__file__).parent / f"{THEME_NAME}.css"  # 同じ方式に統一
-    ...
-```
-
-**教訓**: 複数の出力形式を提供する場合、設定（テーマ、オプション等）の取得方法は**すべての関数で統一**する。コピペで関数を追加した際に、元の設定方法を変更し忘れるミスが起きやすい。
+Marp CLI関連のトラブルシューティング（PDF出力エラー、日本語文字化け、テーマ設定等）は `/kb-marp` スキルを参照してください。
 
 ## SNS連携関連
 
@@ -417,79 +301,7 @@ if "rate limit" in error_str or "429" in error_str or "quota" in error_str or "u
 
 ## Amplify sandbox関連
 
-### 複数sandboxインスタンス競合
-
-**症状**:
-```
-[ERROR] [MultipleSandboxInstancesError] Multiple sandbox instances detected.
-```
-
-**原因**: 複数のampxプロセスが同時実行中
-
-**解決策**:
-```bash
-# 1. プロセス確認
-ps aux | grep "ampx" | grep -v grep
-
-# 2. アーティファクトクリア
-rm -rf .amplify/artifacts/
-
-# 3. sandbox完全削除（正しい方法）
-npx ampx sandbox delete --yes
-
-# 4. 新しくsandbox起動
-npx ampx sandbox
-```
-
-**注意**: `pkill` や `kill` でプロセスを強制終了すると状態が不整合になる。必ず `sandbox delete` を使う。
-
-### sandbox変更が反映されない
-
-**症状**: agent.pyを変更してもランタイムに反映されない
-
-**原因候補**:
-1. 複数sandboxインスタンスの競合
-2. Docker未起動
-3. Hotswapが正しく動作していない
-
-**解決策**:
-1. sandbox deleteで完全削除
-2. Dockerが起動していることを確認
-3. 新しくsandbox起動
-4. デプロイ完了を待つ（5-10分）
-
-### Docker未起動エラー
-
-**症状**:
-```
-ERROR: Cannot connect to the Docker daemon
-[ERROR] [UnknownFault] ToolkitError: Failed to build asset
-```
-
-**解決策**: Docker Desktop起動後、ファイルをtouchして再トリガー
-
-### Tailwind: レスポンシブクラス変更がPC表示に反映されない
-
-**症状**: `text-[8px]` に変更しても、PC画面で文字サイズが変わらない
-
-**原因**: `md:text-xs` などのレスポンシブクラスがPC表示で優先されるため、ベースクラスの変更だけでは反映されない
-
-**解決策**: ベースクラスとレスポンシブクラスの両方を変更する
-```tsx
-// NG: ベースのみ変更 → PCではmd:text-xsが適用される
-className="text-[8px] md:text-xs"
-
-// OK: 両方変更
-className="text-[8px] md:text-[10px]"
-```
-
-### dotenv: .env.local が読み込まれない
-
-**症状**: `.env.local`に環境変数を設定したが、Node.js（Amplify CDK等）で読み込まれない
-
-**原因**: `dotenv`パッケージはデフォルトで`.env`のみ読む。`.env.local`はVite/Next.jsの独自サポート
-
-**解決策**: `.env.local` → `.env` にリネーム（Viteは`.env`も読むため互換性あり）
+Amplify sandbox関連のトラブルシューティングは `/kb-amplify-cdk` スキルを参照してください。
 
 ## デバッグTips
 
@@ -543,8 +355,4 @@ parse @message /"session\.id":\s*"(?<sid>[^"]+)"/
 
 ### Marpテーマ確認
 
-スライドに適用されているテーマを確認するには、ブラウザDevToolsで:
-```javascript
-// section要素のdata-theme属性を確認
-document.querySelectorAll('section[data-theme]')
-```
+Marp関連のデバッグは `/kb-marp` スキルを参照してください。

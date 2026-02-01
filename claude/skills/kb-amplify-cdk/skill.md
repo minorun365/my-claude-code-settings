@@ -309,6 +309,33 @@ containerImageBuild.repository.addLifecycleRule({...});
 
 ---
 
+## 開発時のトラブルシューティング
+
+### Tailwind: レスポンシブクラス変更がPC表示に反映されない
+
+**症状**: `text-[8px]` に変更しても、PC画面で文字サイズが変わらない
+
+**原因**: `md:text-xs` などのレスポンシブクラスがPC表示で優先されるため、ベースクラスの変更だけでは反映されない
+
+**解決策**: ベースクラスとレスポンシブクラスの両方を変更する
+```tsx
+// NG: ベースのみ変更 → PCではmd:text-xsが適用される
+className="text-[8px] md:text-xs"
+
+// OK: 両方変更
+className="text-[8px] md:text-[10px]"
+```
+
+### dotenv: .env.local が読み込まれない
+
+**症状**: `.env.local`に環境変数を設定したが、Node.js（Amplify CDK等）で読み込まれない
+
+**原因**: `dotenv`パッケージはデフォルトで`.env`のみ読む。`.env.local`はVite/Next.jsの独自サポート
+
+**解決策**: `.env.local` → `.env` にリネーム（Viteは`.env`も読むため互換性あり）
+
+---
+
 ## よくあるエラー
 
 ### amplify_outputs.json が見つからない
