@@ -13,7 +13,6 @@ claude/                # Claude設定フォルダ（本来は頭に"."が付く�
 ├── settings.json      # Claude Codeの設定
 ├── statusline.sh      # ステータスライン設定
 ├── agents/            # カスタムエージェント
-├── rules/             # プロジェクト横断のナレッジベース
 └── skills/            # カスタムスキル
 ```
 
