@@ -19,8 +19,21 @@
       "Bash(file:*)",
       "Bash(stat:*)",
       "Bash(echo:*)",
-      "Bash(gh:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh pr diff:*)",
+      "Bash(gh issue view:*)",
+      "Bash(gh issue list:*)",
+      "Bash(gh api:*)",
       "Bash(aws:*)",
+      "Bash(aws *)",
+      "Bash(*aws logs*)",
+      "Bash(*aws cloudwatch*)",
+      "Bash(jq:*)",
+      "Bash(*| jq*)",
+      "Bash(*| grep*)",
+      "Bash(*| head*)",
+      "Bash(*| tail*)",
       "mcp__context7__*",
       "mcp__strands__*",
       "mcp__bedrock-agentcore-mcp-server__*",
@@ -71,5 +84,18 @@
     "command": "~/.claude/statusline.sh"
   },
   "language": "日本語（明るく元気、絵文字あり）",
-  "autoUpdatesChannel": "latest"
+  "autoUpdatesChannel": "latest",
+  "spinnerVerbs": {
+    "mode": "replace",
+    "verbs": [
+      "モゾモゾ",
+      "ざわ…ざわ",
+      "もじもじ",
+      "うねうね",
+      "ピロピロピロ",
+      "うにょにょーん",
+      "ぱやぱや",
+      "はわわわ"
+    ]
+  }
 }
