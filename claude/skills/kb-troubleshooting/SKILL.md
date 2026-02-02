@@ -301,7 +301,100 @@ if "rate limit" in error_str or "429" in error_str or "quota" in error_str or "u
 
 ## Amplify sandbox関連
 
-Amplify sandbox関連のトラブルシューティングは `/kb-amplify-cdk` スキルを参照してください。
+### 複数sandboxインスタンス競合
+
+**症状**:
+```
+[ERROR] [MultipleSandboxInstancesError] Multiple sandbox instances detected.
+```
+
+**原因**: 複数のampxプロセスが同時実行中
+
+**解決策**:
+```bash
+# 1. プロセス確認
+ps aux | grep "ampx" | grep -v grep
+
+# 2. アーティファクトクリア
+rm -rf .amplify/artifacts/
+
+# 3. sandbox完全削除（正しい方法）
+npx ampx sandbox delete --yes
+
+# 4. 新しくsandbox起動
+npx ampx sandbox
+```
+
+**注意**: `pkill` や `kill` でプロセスを強制終了すると状態が不整合になる。必ず `sandbox delete` を使う。
+
+### sandbox変更が反映されない
+
+**症状**: agent.pyを変更してもランタイムに反映されない
+
+**原因候補**:
+1. 複数sandboxインスタンスの競合
+2. Docker未起動
+3. Hotswapが正しく動作していない
+
+**解決策**:
+1. sandbox deleteで完全削除
+2. Dockerが起動していることを確認
+3. 新しくsandbox起動
+4. デプロイ完了を待つ（5-10分）
+
+### Docker未起動エラー
+
+**症状**:
+```
+ERROR: Cannot connect to the Docker daemon
+[ERROR] [UnknownFault] ToolkitError: Failed to build asset
+```
+
+**解決策**: Docker Desktop起動後、ファイルをtouchして再トリガー
+
+### Runtime名バリデーションエラー
+
+**症状**:
+```
+[ValidationError] Runtime name must start with a letter and contain only letters, numbers, and underscores
+```
+
+**原因**: sandbox識別子（デフォルトでユーザー名）にハイフン等の禁止文字が含まれている（例: `mi-onda`）
+
+**解決策**: `backend.ts`でRuntime名をサニタイズする
+
+```typescript
+// amplify/backend.ts
+const backendName = agentCoreStack.node.tryGetContext('amplify-backend-name') as string;
+// Runtime名に使えない文字をサニタイズ
+nameSuffix = (backendName || 'dev').replace(/[^a-zA-Z0-9_]/g, '_');
+// 結果: mi-onda → mi_onda
+```
+
+**ポイント**: 本番環境（AWS_BRANCH）でも同様のサニタイズを行う。ブランチ名に`/`や`-`が含まれる場合がある
+
+### Tailwind: レスポンシブクラス変更がPC表示に反映されない
+
+**症状**: `text-[8px]` に変更しても、PC画面で文字サイズが変わらない
+
+**原因**: `md:text-xs` などのレスポンシブクラスがPC表示で優先されるため、ベースクラスの変更だけでは反映されない
+
+**解決策**: ベースクラスとレスポンシブクラスの両方を変更する
+```tsx
+// NG: ベースのみ変更 → PCではmd:text-xsが適用される
+className="text-[8px] md:text-xs"
+
+// OK: 両方変更
+className="text-[8px] md:text-[10px]"
+```
+
+### dotenv: .env.local が読み込まれない
+
+**症状**: `.env.local`に環境変数を設定したが、Node.js（Amplify CDK等）で読み込まれない
+
+**原因**: `dotenv`パッケージはデフォルトで`.env`のみ読む。`.env.local`はVite/Next.jsの独自サポート
+
+**解決策**: `.env.local` → `.env` にリネーム（Viteは`.env`も読むため互換性あり）
 
 ## デバッグTips
 
