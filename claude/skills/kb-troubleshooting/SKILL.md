@@ -383,15 +383,21 @@ npx ampx sandbox
 3. 新しくsandbox起動
 4. デプロイ完了を待つ（5-10分）
 
-### Docker未起動エラー
+### Docker未起動エラー（よくやる！）
 
 **症状**:
 ```
-ERROR: Cannot connect to the Docker daemon
+ERROR: Cannot connect to the Docker daemon at unix:///Users/mi-onda/.docker/run/docker.sock. Is the docker daemon running?
 [ERROR] [UnknownFault] ToolkitError: Failed to build asset
 ```
 
-**解決策**: Docker Desktop起動後、ファイルをtouchして再トリガー
+**原因**: Docker Desktopが起動していない（よく忘れる！）
+
+**解決策**:
+1. Docker Desktopを起動
+2. sandboxを再起動、またはファイルをtouchして再トリガー
+
+**予防策**: `npx ampx sandbox` を実行する前に Docker Desktop を起動する習慣をつける。または、ターミナルの起動時にDocker Desktopを自動起動するよう設定する
 
 ### Runtime名バリデーションエラー
 
