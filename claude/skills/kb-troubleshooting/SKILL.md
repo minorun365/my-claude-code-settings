@@ -535,6 +535,33 @@ className="text-[8px] md:text-xs"
 className="text-[8px] md:text-[10px]"
 ```
 
+### Amplify Console: SCP拒否エラー（Projectタグ必須環境）
+
+**症状**:
+```
+lambda:CreateFunction ... with an explicit deny in a service control policy
+```
+Amplify自動生成のLambda（`AmplifyBranchLinkerCustomResourceLambda`等）でSCP拒否
+
+**原因**: スタック単位でタグを付けても、Amplify内部で生成されるLambdaにはタグが付かない
+
+**解決策**: **CDK Appレベル**でタグを付与
+
+```typescript
+// backend.ts
+const app = cdk.App.of(agentCoreStack);
+if (app) {
+  cdk.Tags.of(app).add('Project', 'your-project-tag');
+}
+```
+
+**NG（スタック単位）**:
+```typescript
+// これだとAmplify自動生成リソースにタグが付かない
+cdk.Tags.of(agentCoreStack).add('Project', 'presales');
+cdk.Tags.of(backend.auth.stack).add('Project', 'presales');
+```
+
 ### dotenv: .env.local が読み込まれない
 
 **症状**: `.env.local`に環境変数を設定したが、Node.js（Amplify CDK等）で読み込まれない
