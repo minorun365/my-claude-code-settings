@@ -84,6 +84,53 @@ resources: [
 
 **重要**: 1〜3はすべて必須。1つでも欠けるとトレースが出力されない。
 
+### S3 Vectors: Filterable metadata must have at most 2048 bytes
+
+**症状**: Knowledge BaseのSync時にエラー
+```
+Filterable metadata must have at most 2048 bytes
+```
+
+**原因**: S3 Vectorsではデフォルトで全メタデータがFilterable（2KB上限）扱い。Bedrock Knowledge Basesが使用する`AMAZON_BEDROCK_TEXT`（チャンク本文）と`AMAZON_BEDROCK_METADATA`がこの制限を超える。
+
+| メタデータタイプ | 上限 |
+|-----------------|------|
+| Filterable（フィルタリング可能） | **2KB** |
+| Non-filterable（フィルタリング不可） | 40KB |
+
+**解決策**: VectorIndex作成時に`MetadataConfiguration.NonFilterableMetadataKeys`を設定
+
+```typescript
+// CDK (CfnResource)
+const vectorIndex = new CfnResource(stack, 'VectorIndex', {
+  type: 'AWS::S3Vectors::Index',
+  properties: {
+    VectorBucketName: 'my-vectors-bucket',
+    IndexName: 'my-index-v2',  // ← v2にリネーム必要（後述）
+    DataType: 'float32',
+    Dimension: 1024,
+    DistanceMetric: 'cosine',
+    MetadataConfiguration: {
+      NonFilterableMetadataKeys: [
+        'AMAZON_BEDROCK_TEXT',
+        'AMAZON_BEDROCK_METADATA',
+      ],
+    },
+  },
+});
+```
+
+**注意**: `MetadataConfiguration`の変更はCloudFormation的にReplacement（リソース再作成）を伴う。カスタム名のリソースは同名で再作成できないため：
+1. 既存のKnowledge BaseとData Sourceを手動削除
+2. IndexNameを変更（例: `my-index` → `my-index-v2`）
+3. 再デプロイ
+
+```bash
+# 既存リソース削除
+aws bedrock-agent delete-data-source --knowledge-base-id KB_ID --data-source-id DS_ID
+aws bedrock-agent delete-knowledge-base --knowledge-base-id KB_ID
+```
+
 ### Amplify sandbox: amplify_outputs.json が見つからない
 
 **症状**: `Cannot find module '../amplify_outputs.json'`
