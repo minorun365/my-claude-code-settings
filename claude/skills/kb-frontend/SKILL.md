@@ -535,6 +535,73 @@ onText: (text) => {
 
 **ポイント**: `prev`をmapした結果は新しい配列。後続処理ではmap結果の変数（`msgs`）を使うこと。`prev`を参照すると変更が反映されない。
 
+## 疑似ストリーミング表示（1文字ずつ表示）
+
+メッセージを1文字ずつ表示して、AIが入力しているような演出を作るパターン：
+
+```typescript
+const streamMessage = async (message: string) => {
+  // 空のストリーミングメッセージを追加
+  setMessages(prev => [...prev, { role: 'assistant', content: '', isStreaming: true }]);
+
+  // 1文字ずつ追加
+  for (const char of message) {
+    await new Promise(resolve => setTimeout(resolve, 30));  // 30ms間隔
+    setMessages(prev =>
+      prev.map((msg, idx) =>
+        idx === prev.length - 1 && msg.isStreaming
+          ? { ...msg, content: msg.content + char }
+          : msg
+      )
+    );
+  }
+
+  // ストリーミング完了
+  setMessages(prev =>
+    prev.map((msg, idx) =>
+      idx === prev.length - 1 && msg.isStreaming
+        ? { ...msg, isStreaming: false }
+        : msg
+    )
+  );
+};
+```
+
+**用途例**:
+- エラーメッセージの表示
+- 初期メッセージや案内文
+- 編集プロンプトの表示
+
+## 非同期コールバック内でのエラーハンドリング
+
+`invokeAgent`等の非同期関数に渡す`onError`コールバック内で`throw error`しても、外側の`try-catch`には**伝播しない**。コールバック内で直接状態を更新する必要がある：
+
+```typescript
+// ❌ NG: throw しても外側の catch に届かない
+onError: (error) => {
+  console.error('Error:', error);
+  throw error;  // 外側の catch には届かない！
+},
+
+// ✅ OK: コールバック内で直接状態を更新
+onError: (error) => {
+  console.error('Error:', error);
+  const errorMessage = error instanceof Error ? error.message : String(error);
+
+  // 特定のエラーを判定してカスタムメッセージを表示
+  const isModelNotAvailable = errorMessage.includes('model identifier is invalid');
+  const displayMessage = isModelNotAvailable
+    ? 'モデルがまだ利用できません。リリースをお待ちください！'
+    : 'エラーが発生しました。もう一度お試しください。';
+
+  // 疑似ストリーミングで表示（上記パターンを使用）
+  streamErrorMessage(displayMessage);
+  setIsLoading(false);
+},
+```
+
+**理由**: `onError`は`invokeAgent`内部の`try-catch`で呼ばれるため、その中で`throw`してもinvokeAgentのPromiseは正常に解決される。
+
 ## 環境変数の読み込み（.env vs .env.local）
 
 | フレームワーク/ツール | .env | .env.local | 備考 |

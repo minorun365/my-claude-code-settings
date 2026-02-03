@@ -609,6 +609,63 @@ def search_with_fallback(query: str) -> str:
 
 ---
 
+## 未リリースモデルの先行対応
+
+### モデルID設定の先行追加
+
+Bedrockでまだリリースされていないモデルでも、モデルIDを先に設定しておくことが可能。リリース時にコード変更なしで利用開始できる。
+
+```python
+def _get_model_config(model_type: str = "claude") -> dict:
+    if model_type == "claude5":
+        # Claude Sonnet 5（2026年リリース予定）
+        # リリース前はエラーになるが、フロントエンドでユーザーに通知
+        return {
+            "model_id": "us.anthropic.claude-sonnet-5-20260203-v1:0",
+            "cache_prompt": "default",
+            "cache_tools": "default",
+        }
+    elif model_type == "kimi":
+        return {"model_id": "moonshot.kimi-k2-thinking", "cache_prompt": None}
+    else:
+        return {"model_id": "us.anthropic.claude-sonnet-4-5-20250929-v1:0", "cache_prompt": "default"}
+```
+
+### 未リリース時のエラーハンドリング
+
+モデルがBedrockで認識できない場合、以下のエラーが返される：
+
+```
+ValidationException: The provided model identifier is invalid.
+```
+
+フロントエンドでこのエラーを検出し、ユーザーフレンドリーなメッセージを表示：
+
+```typescript
+// onErrorコールバック内
+onError: (error) => {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  const isModelNotAvailable = errorMessage.includes('model identifier is invalid');
+
+  if (isModelNotAvailable) {
+    // 疑似ストリーミングでユーザーに通知
+    streamMessage('Claude Sonnet 5はまだリリースされていません。Bedrockへのモデル追加をお待ちください！');
+  } else {
+    streamMessage('エラーが発生しました。もう一度お試しください。');
+  }
+}
+```
+
+### 新モデル追加時のチェックリスト
+
+| ファイル | 修正内容 |
+|---------|---------|
+| `agent.py` | `_get_model_config()` に新モデルの設定を追加 |
+| `Chat.tsx` | `ModelType` 型に追加、セレクター選択肢を追加 |
+| `useAgentCore.ts` | `ModelType` 型に追加（共通型定義の場合） |
+
+---
+
 ## トラブルシューティング
 
 ### AWS認証エラー
