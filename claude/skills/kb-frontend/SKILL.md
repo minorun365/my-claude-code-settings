@@ -595,3 +595,101 @@ img_clean.save('ogp.jpg', 'JPEG', quality=85)
 画像URLにバージョンパラメータを追加してキャッシュを回避：
 - `ogp.jpg?v=2` のようにクエリパラメータを追加
 - 変更後は [Twitter Card Validator](https://cards-dev.twitter.com/validator) で再検証
+
+## Tailwind CSS Tips
+
+### リストの行頭記号（箇条書き）
+
+Tailwind CSS v4のPreflight（CSSリセット）が`list-style: none`を適用するため、デフォルトで箇条書きの記号（•）が表示されない。
+
+```tsx
+// NG: 行頭記号が表示されない
+<ul className="text-sm">
+  <li>項目1</li>
+  <li>項目2</li>
+</ul>
+
+// OK: list-disc list-inside を追加
+<ul className="text-sm list-disc list-inside">
+  <li>項目1</li>
+  <li>項目2</li>
+</ul>
+```
+
+| クラス | 効果 |
+|--------|------|
+| `list-disc` | 黒丸（•）を表示 |
+| `list-decimal` | 番号（1. 2. 3.）を表示 |
+| `list-inside` | 記号をテキスト内側に配置 |
+| `list-outside` | 記号をテキスト外側に配置（デフォルト） |
+
+## モーダルの状態管理パターン
+
+### 確認 → 処理中 → 結果表示の3段階モーダル
+
+危険な操作（削除、公開など）は確認モーダルを挟むのがベストプラクティス。
+
+```tsx
+// 状態管理
+const [showConfirm, setShowConfirm] = useState(false);  // 確認モーダル
+const [isProcessing, setIsProcessing] = useState(false);  // 処理中フラグ
+const [result, setResult] = useState<Result | null>(null);  // 結果（結果モーダル表示用）
+
+// 確認モーダルを開く
+const handleRequest = () => {
+  setShowConfirm(true);
+};
+
+// 処理実行
+const handleConfirm = async () => {
+  setIsProcessing(true);
+  try {
+    const result = await doSomething();
+    setShowConfirm(false);  // 確認モーダルを閉じる
+    setResult(result);       // 結果モーダルを開く
+  } catch (error) {
+    setShowConfirm(false);
+    alert(`エラー: ${error.message}`);
+  } finally {
+    setIsProcessing(false);
+  }
+};
+
+// JSX
+<ConfirmModal
+  isOpen={showConfirm}
+  onConfirm={handleConfirm}
+  onCancel={() => setShowConfirm(false)}
+  isProcessing={isProcessing}  // ボタンを「処理中...」に変更 + 無効化
+/>
+<ResultModal
+  isOpen={!!result}
+  result={result}
+  onClose={() => setResult(null)}
+/>
+```
+
+### 確認モーダルで「処理中」を表示するポイント
+
+モーダルを閉じるのは**処理完了後**にする。閉じるのが先だと「処理中...」が見えない。
+
+```tsx
+// NG: 先にモーダルを閉じる → 「処理中...」が見えない
+const handleConfirm = async () => {
+  setShowConfirm(false);  // ← ここで閉じると
+  setIsProcessing(true);  // ← この変更が見えない
+  // ...処理...
+};
+
+// OK: 処理完了後にモーダルを閉じる
+const handleConfirm = async () => {
+  setIsProcessing(true);  // ボタンが「処理中...」に変わる
+  try {
+    const result = await doSomething();
+    setShowConfirm(false);  // 処理完了後に閉じる
+    setResult(result);
+  } finally {
+    setIsProcessing(false);
+  }
+};
+```

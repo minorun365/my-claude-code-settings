@@ -336,6 +336,97 @@ className="text-[8px] md:text-[10px]"
 
 ---
 
+## CloudFront + S3 OAC（匿名公開コンテンツ配信）
+
+### 概要
+
+S3バケットを直接公開せず、CloudFront経由でのみアクセスを許可する構成。
+`defineStorage`はCognito認証ユーザー向けなので、匿名公開にはカスタムCDKが必要。
+
+### 実装例
+
+```typescript
+// amplify/storage/resource.ts
+import * as cdk from 'aws-cdk-lib';
+import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
+import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
+import { Construct } from 'constructs';
+
+export class SharedContentConstruct extends Construct {
+  public readonly bucket: s3.Bucket;
+  public readonly distribution: cloudfront.Distribution;
+
+  constructor(scope: Construct, id: string, nameSuffix: string) {
+    super(scope, id);
+
+    // S3バケット（パブリックアクセスブロック有効）
+    this.bucket = new s3.Bucket(this, 'Bucket', {
+      bucketName: `my-shared-content-${nameSuffix}`,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      lifecycleRules: [{
+        id: 'DeleteAfter7Days',
+        expiration: cdk.Duration.days(7),  // 自動削除
+      }],
+    });
+
+    // CloudFront（OAC経由でS3アクセス）
+    this.distribution = new cloudfront.Distribution(this, 'Distribution', {
+      defaultBehavior: {
+        origin: origins.S3BucketOrigin.withOriginAccessControl(this.bucket),
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+      },
+    });
+  }
+}
+```
+
+### backend.tsでの統合
+
+```typescript
+// amplify/backend.ts
+import { SharedContentConstruct } from './storage/resource';
+
+const customStack = backend.createStack('SharedContentStack');
+const sharedContent = new SharedContentConstruct(customStack, 'SharedContent', nameSuffix);
+
+// フロントエンドに出力
+backend.addOutput({
+  custom: {
+    distributionDomain: sharedContent.distribution.distributionDomainName,
+  },
+});
+```
+
+### AgentCore/Lambdaへの権限付与
+
+```typescript
+runtime.addToRolePolicy(new iam.PolicyStatement({
+  actions: ['s3:PutObject'],
+  resources: [`${sharedContent.bucket.bucketArn}/*`],
+}));
+
+// 環境変数で渡す
+environmentVariables: {
+  SHARED_BUCKET: sharedContent.bucket.bucketName,
+  CLOUDFRONT_DOMAIN: sharedContent.distribution.distributionDomainName,
+}
+```
+
+### defineStorage vs カスタムCDK
+
+| 観点 | defineStorage | カスタムCDK |
+|------|---------------|------------|
+| 認証ユーザー向け | ✅ 最適 | 可能 |
+| 匿名公開 | ❌ 不向き | ✅ 最適 |
+| CloudFront連携 | ❌ 非対応 | ✅ 柔軟 |
+| Lifecycle Rule | 制限あり | ✅ 自由 |
+
+---
+
 ## よくあるエラー
 
 ### amplify_outputs.json が見つからない
