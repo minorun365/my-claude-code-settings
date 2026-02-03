@@ -414,6 +414,59 @@ nameSuffix = (backendName || 'dev').replace(/[^a-zA-Z0-9_]/g, '_');
 
 **ポイント**: 本番環境（AWS_BRANCH）でも同様のサニタイズを行う。ブランチ名に`/`や`-`が含まれる場合がある
 
+### CDK DynamoDB: pointInTimeRecoverySpecificationの型エラー
+
+**症状**:
+```
+Type 'boolean' is not assignable to type 'PointInTimeRecoverySpecification'.
+```
+
+**原因**: aws-cdk-libの最新版で`pointInTimeRecoverySpecification`の型が`boolean`から`PointInTimeRecoverySpecification`オブジェクト型に変更された
+
+**解決策**: PITRが不要なら、プロパティ自体を削除する（デフォルトで無効）
+
+```typescript
+// NG: 古い書き方
+const table = new dynamodb.Table(stack, 'MyTable', {
+  partitionKey: { name: 'id', type: dynamodb.AttributeType.STRING },
+  pointInTimeRecoverySpecification: false,  // TypeScriptエラー
+});
+
+// OK: プロパティを削除（デフォルトでPITR無効）
+const table = new dynamodb.Table(stack, 'MyTable', {
+  partitionKey: { name: 'id', type: dynamodb.AttributeType.STRING },
+  // pointInTimeRecoverySpecification は指定しない
+});
+```
+
+### S3バケット名: アンダースコア不可
+
+**症状**:
+```
+[ValidationError] Invalid S3 bucket name (value: estimate-agent-data-mi_onda)
+Bucket name must only contain lowercase characters and the symbols, period (.) and dash (-)
+```
+
+**原因**: S3バケット名にはアンダースコア（`_`）が使用不可。sandbox識別子がユーザー名（例: `mi_onda`）の場合に発生
+
+**解決策**: バケット名生成時にアンダースコアをハイフンに変換
+
+```typescript
+// amplify/data/resource.ts
+const sanitizedSuffix = nameSuffix.replace(/_/g, '-').toLowerCase();
+const dataBucket = new s3.Bucket(stack, 'DataBucket', {
+  bucketName: `my-bucket-${sanitizedSuffix}`,  // mi-onda になる
+});
+```
+
+**S3バケット命名規則**:
+- 小文字のみ（a-z）
+- 数字（0-9）
+- ハイフン（`-`）
+- ピリオド（`.`）※ドメイン形式の場合
+
+**使用不可**: アンダースコア（`_`）、大文字、スペース、その他の記号
+
 ### Tailwind: レスポンシブクラス変更がPC表示に反映されない
 
 **症状**: `text-[8px]` に変更しても、PC画面で文字サイズが変わらない
