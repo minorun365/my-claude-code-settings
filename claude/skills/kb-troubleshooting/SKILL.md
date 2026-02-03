@@ -210,6 +210,47 @@ Marp関連のトラブルシューティングは `/kb-marp` スキルを参照�
 const textValue = event.content || event.data;
 ```
 
+### 疑似ストリーミング: エラーメッセージが表示されない
+
+**症状**: `onError`コールバックで疑似ストリーミングを開始しても、メッセージが表示されない
+
+**原因**: `onError`内の非同期関数が`await`されずに呼ばれ、`finally`ブロックが先に実行される。`finally`で`isStreaming: false`に設定されるため、ストリーミングループ内の`isStreaming`チェックが失敗する。
+
+```typescript
+// 問題のあるコード
+onError: (error) => {
+  streamErrorMessage(displayMessage);  // 非同期だがawaitされない
+},
+// ...
+finally {
+  // streamErrorMessageより先に実行される
+  setMessages(prev =>
+    prev.map(msg => msg.isStreaming ? { ...msg, isStreaming: false } : msg)
+  );
+}
+
+// streamErrorMessage内
+for (const char of message) {
+  setMessages(prev =>
+    prev.map((msg, idx) =>
+      idx === prev.length - 1 && msg.isStreaming  // ← false になっている
+        ? { ...msg, content: msg.content + char }
+        : msg
+    )
+  );
+}
+```
+
+**解決策**: 疑似ストリーミングのループ内で`isStreaming`チェックを緩和する
+
+```typescript
+// NG: isStreamingをチェック（finallyで先にfalseになる）
+idx === prev.length - 1 && msg.role === 'assistant' && msg.isStreaming
+
+// OK: isStreamingチェックを削除
+idx === prev.length - 1 && msg.role === 'assistant'
+```
+
 ## Python関連
 
 ### uv: AWS認証エラー
