@@ -572,12 +572,12 @@ const streamMessage = async (message: string) => {
 - 初期メッセージや案内文
 - 編集プロンプトの表示
 
-### finallyブロックとの競合に注意
+### finallyブロックとの競合に注意（カーソル表示の維持）
 
 コールバック内で疑似ストリーミングを呼ぶ場合、`finally`ブロックとの競合に注意が必要：
 
 ```typescript
-// ❌ 問題: finallyが先に実行され、isStreaming: false になる
+// ❌ 問題: finallyが先に実行され、isStreaming: false になりカーソルが消える
 onError: (error) => {
   streamErrorMessage(displayMessage);  // awaitなしで呼ばれる
 },
@@ -588,20 +588,20 @@ onError: (error) => {
   );
 }
 
-// ✅ 解決策: isStreamingチェックを緩和してfinallyとの競合を回避
+// ✅ 解決策: 毎回 isStreaming: true を設定してカーソル表示を維持
 for (const char of message) {
   await new Promise(resolve => setTimeout(resolve, 30));
   setMessages(prev =>
     prev.map((msg, idx) =>
-      idx === prev.length - 1 && msg.role === 'assistant'  // isStreamingチェックを削除
-        ? { ...msg, content: msg.content + char }
+      idx === prev.length - 1 && msg.role === 'assistant'
+        ? { ...msg, content: msg.content + char, isStreaming: true }  // 毎回trueを設定
         : msg
     )
   );
 }
 ```
 
-**ポイント**: コールバック内の非同期関数は`await`されないため、`finally`ブロックが先に実行される。`isStreaming`フラグに依存しない実装にすることで競合を回避できる。
+**ポイント**: コールバック内の非同期関数は`await`されないため、`finally`ブロックが先に実行される。毎回`isStreaming: true`を設定することで、finallyで一度`false`になっても次の文字追加時に`true`に戻り、カーソル `▌` が表示され続ける。
 
 ## 非同期コールバック内でのエラーハンドリング
 
