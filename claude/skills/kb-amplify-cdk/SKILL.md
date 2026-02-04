@@ -427,6 +427,102 @@ environmentVariables: {
 
 ---
 
+## Cognito検証ユーザーの自動作成（sandbox環境向け）
+
+### 概要
+
+sandbox環境でログインテストを行うため、検証用ユーザーを自動作成したい場合の実装パターン。
+
+### 課題
+
+- `CfnUserPoolUser` だけでは **一時パスワード** しか設定できない
+- 一時パスワードでログインすると `FORCE_CHANGE_PASSWORD` 状態になり、パスワード変更が必要
+- 自動テストや開発時に面倒
+
+### 解決策
+
+`CfnUserPoolUser` + `AwsCustomResource`（adminSetUserPassword API）の組み合わせで **恒久パスワード** を設定する。
+
+### 実装例
+
+```typescript
+// amplify/backend.ts
+import * as cognito from 'aws-cdk-lib/aws-cognito';
+import * as cr from 'aws-cdk-lib/custom-resources';
+
+const isSandbox = !process.env.AWS_BRANCH;
+
+if (isSandbox) {
+  const testUserEmail = process.env.TEST_USER_EMAIL;
+  const testUserPassword = process.env.TEST_USER_PASSWORD;
+
+  if (testUserEmail && testUserPassword) {
+    const userPool = backend.auth.resources.userPool;
+
+    // ステップ1: ユーザー作成
+    const testUser = new cognito.CfnUserPoolUser(stack, 'TestUser', {
+      userPoolId: userPool.userPoolId,
+      username: testUserEmail,
+      userAttributes: [
+        { name: 'email', value: testUserEmail },
+        { name: 'email_verified', value: 'true' },  // メール確認済み
+      ],
+      messageAction: 'SUPPRESS',  // ウェルカムメールを抑制
+    });
+
+    // ステップ2: 恒久パスワード設定
+    const setPassword = new cr.AwsCustomResource(stack, 'TestUserSetPassword', {
+      onCreate: {
+        service: 'CognitoIdentityServiceProvider',
+        action: 'adminSetUserPassword',
+        parameters: {
+          UserPoolId: userPool.userPoolId,
+          Username: testUserEmail,
+          Password: testUserPassword,
+          Permanent: true,  // 恒久パスワード（FORCE_CHANGE_PASSWORD回避）
+        },
+        physicalResourceId: cr.PhysicalResourceId.of(`TestUserPassword-${testUserEmail}`),
+      },
+      policy: cr.AwsCustomResourcePolicy.fromSdkCalls({
+        resources: [userPool.userPoolArn],
+      }),
+    });
+
+    // 依存関係: ユーザー作成後にパスワード設定
+    setPassword.node.addDependency(testUser);
+  }
+}
+```
+
+### 環境変数（.env）
+
+```bash
+TEST_USER_EMAIL=test@example.com
+TEST_USER_PASSWORD=TestPass123!
+```
+
+### ポイント
+
+| 項目 | 説明 |
+|------|------|
+| `messageAction: 'SUPPRESS'` | ウェルカムメール送信を抑制 |
+| `email_verified: 'true'` | メール確認済みとして登録 |
+| `Permanent: true` | 恒久パスワード（初回変更不要） |
+| `isSandbox` 判定 | 本番環境では作成しない |
+
+### 注意事項
+
+- 本番環境では `AWS_BRANCH` が設定されるため、この処理は実行されない
+- スタック削除時にユーザーも自動削除される
+- パスワードはCognito要件を満たす必要あり（8文字以上、大文字・小文字・数字・記号）
+
+### 参考リンク
+
+- [AdminSetUserPassword API](https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_AdminSetUserPassword.html)
+- [CfnUserPoolUser CDK](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_cognito.CfnUserPoolUser.html)
+
+---
+
 ## よくあるエラー
 
 ### amplify_outputs.json が見つからない
