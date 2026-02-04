@@ -580,6 +580,69 @@ CMD ["opentelemetry-instrument", "python", "agent.py"]
 
 ---
 
+## FPDF2でPDF生成（日本語対応）
+
+### 日本語フォント（NotoSansCJKjp）
+
+日本語PDFを生成する場合、CJKフォントが必要。NotoSansCJKjpを使用：
+
+```dockerfile
+# Dockerfile: フォントをプロジェクトからコピー
+COPY fonts/ /app/fonts/
+```
+
+**フォントの入手先**:
+- https://github.com/minoryorg/Noto-Sans-CJK-JP
+- `fonts/NotoSansCJKjp-Regular.ttf`
+- `fonts/NotoSansCJKjp-Bold.ttf`
+
+```python
+# agent.py: FPDF2でフォント登録
+from fpdf import FPDF
+
+class MyPDF(FPDF):
+    def __init__(self):
+        super().__init__()
+        self.add_font("NotoSansCJKjp", fname="/app/fonts/NotoSansCJKjp-Regular.ttf")
+        self.add_font("NotoSansCJKjp", style="B", fname="/app/fonts/NotoSansCJKjp-Bold.ttf")
+```
+
+### S3への保存と署名付きURL
+
+```python
+from botocore.config import Config
+
+# 署名付きURL用のクライアント（s3v4必須）
+s3_presigned = boto3.client(
+    "s3",
+    region_name=AWS_REGION,
+    config=Config(signature_version="s3v4"),
+)
+
+# PDFをS3にアップロード
+pdf_bytes = pdf.output()
+s3_client.put_object(
+    Bucket=UPLOAD_BUCKET,
+    Key=f"estimates/{estimate_no}.pdf",
+    Body=pdf_bytes,
+    ContentType="application/pdf",
+)
+
+# 署名付きURL生成（1時間有効）
+download_url = s3_presigned.generate_presigned_url(
+    ClientMethod="get_object",
+    Params={"Bucket": UPLOAD_BUCKET, "Key": s3_key},
+    ExpiresIn=3600,
+)
+```
+
+### 注意点
+- GitHubからフォントをcurlでダウンロードする場合、`-L`オプション必須（リダイレクト対応）
+- apt-getでfonts-noto-cjkをインストールするとTTC形式になりFPDF2で追加設定が必要
+- **プロジェクトにフォントファイルを含めてCOPYするのが最も確実**
+
+---
+
 ## 外部APIキーの複数フォールバックパターン
 
 レートリミットのある外部API（Tavily等）を使う場合、複数のAPIキーを環境変数に設定し、エラー時に自動で次のキーに切り替える方式が有効。

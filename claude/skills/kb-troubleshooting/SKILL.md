@@ -570,6 +570,43 @@ cdk.Tags.of(backend.auth.stack).add('Project', 'presales');
 
 **解決策**: `.env.local` → `.env` にリネーム（Viteは`.env`も読むため互換性あり）
 
+### AgentCore S3バケット: grantRead だけでは書き込み不可
+
+**症状**: ツールでS3にファイルをアップロードしようとすると「AccessDenied」エラー
+
+**原因**: CDKで `bucket.grantRead(runtime)` のみ設定していた
+
+**解決策**: 書き込みが必要な場合は `grantReadWrite` を使用
+
+```typescript
+// NG: 読み取りのみ
+uploadBucket.grantRead(runtime);
+
+// OK: 読み書き
+uploadBucket.grantReadWrite(runtime);
+```
+
+### Dockerfile: GitHubからフォントダウンロード失敗
+
+**症状**: Dockerビルド中にcurlやwgetでGitHubからファイルをダウンロードするとエラー（exit code 8）
+
+**原因**: GitHubのraw URLはリダイレクトする。wgetはデフォルトでリダイレクトを追従しない
+
+**解決策**:
+1. curlを使う場合は `-L` オプション必須
+2. **最も確実**: フォントファイルをプロジェクトに含めてCOPYする
+
+```dockerfile
+# NG: wgetでリダイレクトを追従しない
+RUN wget -q -O /app/fonts/font.ttf "https://github.com/..."
+
+# OK: curlで-Lオプション
+RUN curl -sL -o /app/fonts/font.ttf "https://github.com/..."
+
+# 最も確実: プロジェクトに含めてCOPY
+COPY fonts/ /app/fonts/
+```
+
 ## デバッグTips
 
 ### Chrome DevTools MCP
