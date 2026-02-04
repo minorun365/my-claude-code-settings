@@ -260,6 +260,65 @@ if model_type == "kimi" and kimi_text_buffer:
 
 ---
 
+### `<think></think>`タグがテキストに混入
+
+**症状**: チャット欄に`<think>...</think>`タグで囲まれた思考過程が表示される。
+
+**原因**: Kimi K2 Thinkingは`reasoning`イベントとは別に、テキストストリーム（`data`イベント）に`<think>`タグを直接出力することがある。
+
+**解決策**: ストリーミング処理中に`<think>`タグをリアルタイムでフィルタリング
+
+```python
+def remove_think_tags(text: str) -> str:
+    """<think>...</think>タグを除去する"""
+    import re
+    return re.sub(r'<think>[\s\S]*?</think>', '', text)
+
+# ストリーミング処理内で
+kimi_in_think_tag = False  # <think>タグ内かどうか
+kimi_pending_text = ""  # タグ検出用のペンディングバッファ
+
+async for event in stream:
+    if "data" in event:
+        chunk = event["data"]
+        kimi_pending_text += chunk
+
+        # <think>タグ開始の検出
+        while "<think>" in kimi_pending_text:
+            before, _, after = kimi_pending_text.partition("<think>")
+            if before:
+                yield {"type": "text", "data": before}
+            kimi_in_think_tag = True
+            kimi_pending_text = after
+
+        # </think>タグ終了の検出
+        while "</think>" in kimi_pending_text:
+            before, _, after = kimi_pending_text.partition("</think>")
+            kimi_in_think_tag = False
+            kimi_pending_text = after
+
+        # タグ内でなければ出力（タグ断片は保留）
+        if not kimi_in_think_tag:
+            safe_end = len(kimi_pending_text)
+            if "<" in kimi_pending_text:
+                last_lt = kimi_pending_text.rfind("<")
+                if len(kimi_pending_text) - last_lt <= 7:  # <think> は7文字
+                    safe_end = last_lt
+            if safe_end > 0:
+                to_send = kimi_pending_text[:safe_end]
+                kimi_pending_text = kimi_pending_text[safe_end:]
+                if to_send:
+                    yield {"type": "text", "data": to_send}
+```
+
+**ポイント**:
+- ストリーミングで断片的に来るタグを正しく処理するためバッファリング
+- `<think>`検出で思考モード開始、`</think>`で終了
+- タグ断片（`<thi`など）を誤って出力しないよう末尾を保留
+- ストリーム終了後にペンディングバッファの残りも処理
+
+---
+
 ### Web検索後にスライドが生成されない
 
 **症状**: Web検索を実行すると「Web検索完了」と表示された後、スライドが生成されずに終了する。「〜検索しておきます」というテキストは表示される。
