@@ -15,6 +15,7 @@ Claude Codeの**共通設定のみ**をGitHubリポジトリと双方向同期�
 | `~/.claude/skills/` | `claude/skills/` | ナレッジベース含む |
 | `~/.claude/CLAUDE.md` | `claude/CLAUDE.md` | |
 | `~/.claude.json` の `mcpServers` | `.claude.json` | 機密情報はマスク |
+| `~/.claude/settings.json` の一部 | `claude/settings.json` | spinnerVerbs, language のみ |
 
 ## mcpServers同期の注意事項
 
@@ -35,7 +36,7 @@ Claude Codeの**共通設定のみ**をGitHubリポジトリと双方向同期�
 
 以下はPC固有のため**同期しない**：
 
-- `~/.claude/settings.json` - 権限、hooks、statusLine等（PC固有パスやOS依存）
+- `~/.claude/settings.json` の一部 - permissions、hooks、statusLine（PC固有パスやOS依存）
 - `~/.claude/hooks/` - フックスクリプト
 - `~/.claude/projects/` - プロジェクト固有設定
 - `~/.claude/plugins/` - プラグイン設定
@@ -56,6 +57,7 @@ Claude Codeの**共通設定のみ**をGitHubリポジトリと双方向同期�
    ```bash
    diff -rq ~/.claude/skills/ ~/git/minorun365/my-claude-code-settings/claude/skills/
    diff ~/.claude/CLAUDE.md ~/git/minorun365/my-claude-code-settings/claude/CLAUDE.md
+   diff <(jq '{spinnerVerbs, language}' ~/.claude/settings.json) <(jq '{spinnerVerbs, language}' ~/git/minorun365/my-claude-code-settings/claude/settings.json 2>/dev/null || echo '{}')
    ```
 
 2. **同期実行**
@@ -64,7 +66,16 @@ Claude Codeの**共通設定のみ**をGitHubリポジトリと双方向同期�
    cp ~/.claude/CLAUDE.md ~/git/minorun365/my-claude-code-settings/claude/
    ```
 
-3. **mcpServers同期**（機密情報をマスクしてエクスポート）
+3. **settings.json同期**（spinnerVerbs, languageのみ）
+   ```bash
+   # リポジトリの既存設定をベースに、ローカルのspinnerVerbs/languageで更新
+   jq -s '.[0] * {spinnerVerbs: .[1].spinnerVerbs, language: .[1].language}' \
+     ~/git/minorun365/my-claude-code-settings/claude/settings.json \
+     ~/.claude/settings.json > /tmp/settings.json && \
+   mv /tmp/settings.json ~/git/minorun365/my-claude-code-settings/claude/settings.json
+   ```
+
+4. **mcpServers同期**（機密情報をマスクしてエクスポート）
    ```bash
    # jqで mcpServers を抽出し、機密情報をマスク
    jq '{mcpServers: .mcpServers | walk(
@@ -80,7 +91,7 @@ Claude Codeの**共通設定のみ**をGitHubリポジトリと双方向同期�
    )}' ~/.claude.json > ~/git/minorun365/my-claude-code-settings/.claude.json
    ```
 
-4. **コミット・プッシュ**（ユーザー確認後）
+5. **コミット・プッシュ**（ユーザー確認後）
    ```bash
    cd ~/git/minorun365/my-claude-code-settings
    git add -A
@@ -101,6 +112,7 @@ Claude Codeの**共通設定のみ**をGitHubリポジトリと双方向同期�
    ```bash
    diff -rq ~/git/minorun365/my-claude-code-settings/claude/skills/ ~/.claude/skills/
    diff ~/git/minorun365/my-claude-code-settings/claude/CLAUDE.md ~/.claude/CLAUDE.md
+   diff <(jq '{spinnerVerbs, language}' ~/git/minorun365/my-claude-code-settings/claude/settings.json 2>/dev/null || echo '{}') <(jq '{spinnerVerbs, language}' ~/.claude/settings.json)
    ```
 
 3. **同期実行**（ユーザー確認後）
@@ -109,7 +121,16 @@ Claude Codeの**共通設定のみ**をGitHubリポジトリと双方向同期�
    cp ~/git/minorun365/my-claude-code-settings/claude/CLAUDE.md ~/.claude/
    ```
 
-4. **mcpServers適用**（手動）
+4. **settings.json適用**（spinnerVerbs, languageのみ）
+   ```bash
+   # ローカルの既存設定をベースに、リポジトリのspinnerVerbs/languageで更新
+   jq -s '.[0] * {spinnerVerbs: .[1].spinnerVerbs, language: .[1].language}' \
+     ~/.claude/settings.json \
+     ~/git/minorun365/my-claude-code-settings/claude/settings.json > /tmp/settings.json && \
+   mv /tmp/settings.json ~/.claude/settings.json
+   ```
+
+5. **mcpServers適用**（手動）
    - `.claude.json` を参照して `~/.claude.json` の `mcpServers` を更新
    - `<MASKED>` 部分は各自の認証情報に置き換える
 
