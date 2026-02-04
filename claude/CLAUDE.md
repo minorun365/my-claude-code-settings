@@ -7,7 +7,10 @@
 
 # AWS関連
 - AWSリージョンはバージニア北部（us-east-1）、オレゴン（us-west-2）、東京（ap-northeast-1）を使うことが多いです。
-- ローカル環境でのAWS認証は `aws login` コマンドを使ってください。Claude Codeがコード実行したら、みのるんがブラウザで認証操作をします。
+- ローカル環境でのAWS認証は以下のプロファイルを使用する：
+  - **個人Orgアカウント**: `aws sso login --profile sandbox`
+  - **ビジネスOrgアカウント**: `aws sso login --profile kag-sandbox`
+  - プロジェクトでどちらのアカウントを使うべきか不明な場合は、必ずみのるんに確認すること。
 - よく使うBedrockのClaudeモデルIDは `us.anthropic.claude-sonnet-4-5-20250929-v1:0` と `us.anthropic.claude-haiku-4-5-20251001-v1:0` です。
 
 # Claude Code関連
