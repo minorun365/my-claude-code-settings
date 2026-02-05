@@ -13,6 +13,9 @@
   - プロジェクトでどちらのアカウントを使うべきか不明な場合は、必ずみのるんに確認すること。
 - よく使うBedrockのClaudeモデルIDは `us.anthropic.claude-sonnet-4-5-20250929-v1:0` と `us.anthropic.claude-haiku-4-5-20251001-v1:0` です。
 
+## AWS / Cloud Operations
+- AWS CLIコマンドやスクリプトを実行する前に、必ず `aws sts get-caller-identity --profile <profile>` でSSOセッションがアクティブか確認すること。
+
 # Claude Code関連
 - コンテキスト節約のため、調査やデバッグにはサブエージェントを活用してください。
 - 開発中に生成するドキュメントにAPIキーなどの機密情報を書いてもいいけど、必ず .gitignore に追加して。
@@ -34,6 +37,7 @@
 | `/kb-amplify-cdk` | Amplify Gen2 + CDK（sandbox、本番デプロイ、Hotswap） |
 | `/kb-frontend` | フロントエンド（React、Tailwind、SSE、Amplify UI） |
 | `/kb-marp` | Marp（スライド生成、テーマ、iOS対応、PDF/PPTX生成） |
+| `/kb-aws-diagrams` | AWS Diagram MCP Server（アーキテクチャ図、カスタムアイコン、レイアウト調整） |
 | `/kb-troubleshooting` | トラブルシューティング集（AWS、フロントエンド、Python、LLMアプリ）|
 
 プロジェクト固有でない汎用的な学びを得たら `/sync-knowledge` で追記する。

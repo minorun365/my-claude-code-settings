@@ -70,10 +70,16 @@
       "env": {
         "FASTMCP_LOG_LEVEL": "ERROR"
       }
+    },
+    "aws-diagram-mcp-server": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "awslabs.aws-diagram-mcp-server"
+      ],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      }
     }
-  },
-  "autoCompactEnabled": false,
-  "respectGitignore": false,
-  "theme": "light",
-  "autoUpdates": false
+  }
 }
