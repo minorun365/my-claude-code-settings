@@ -8,6 +8,16 @@
       ],
       "env": {}
     },
+    "aws-mcp": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "mcp-proxy-for-aws@latest",
+        "https://aws-mcp.us-east-1.api.aws/mcp",
+        "--metadata",
+        "AWS_REGION=us-east-1"
+      ]
+    },
     "playwright": {
       "type": "stdio",
       "command": "npx",
@@ -15,6 +25,16 @@
         "@playwright/mcp@latest"
       ],
       "env": {}
+    },
+    "aws-iac-mcp-server": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "awslabs.aws-iac-mcp-server@latest"
+      ],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      }
     },
     "chrome-devtools": {
       "type": "stdio",
@@ -45,27 +65,6 @@
       "command": "uvx",
       "args": [
         "awslabs.amazon-bedrock-agentcore-mcp-server@latest"
-      ],
-      "env": {
-        "FASTMCP_LOG_LEVEL": "ERROR"
-      }
-    },
-    "aws-mcp": {
-      "type": "stdio",
-      "command": "uvx",
-      "args": [
-        "mcp-proxy-for-aws@latest",
-        "https://aws-mcp.us-east-1.api.aws/mcp",
-        "--metadata",
-        "AWS_REGION=us-east-1"
-      ],
-      "env": {}
-    },
-    "aws-iac-mcp-server": {
-      "type": "stdio",
-      "command": "uvx",
-      "args": [
-        "awslabs.aws-iac-mcp-server@latest"
       ],
       "env": {
         "FASTMCP_LOG_LEVEL": "ERROR"

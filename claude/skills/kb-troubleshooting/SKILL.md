@@ -300,6 +300,40 @@ idx === prev.length - 1 && msg.role === 'assistant'
 
 ## Python関連
 
+### グローバル変数の並行リクエスト競合
+
+**症状**: 複数ユーザーが同時にリクエストすると、他のユーザーのデータが返される
+
+**原因**: `global`変数は並行リクエスト間で共有される。Pythonのasyncioで複数リクエストが同一プロセスで処理されると、ある riクエストが書き込んだ値を別のリクエストが読み取ってしまう
+
+**解決策**: `contextvars.ContextVar`を使用する
+
+```python
+# NG: グローバル変数（並行リクエストで競合）
+_result: str | None = None
+
+@tool
+def my_tool(data: str) -> str:
+    global _result
+    _result = data  # 別リクエストに上書きされる可能性
+    return "完了"
+
+# OK: ContextVar（リクエストごとに分離）
+from contextvars import ContextVar
+
+_result: ContextVar[str | None] = ContextVar('result', default=None)
+
+@tool
+def my_tool(data: str) -> str:
+    _result.set(data)  # 各リクエストのコンテキストで独立
+    return "完了"
+
+def get_result() -> str | None:
+    return _result.get()
+```
+
+**適用対象**: AgentCore Runtime、FastAPI、asyncioベースのサーバーなど並行処理が発生する環境
+
 ### uv: AWS認証エラー
 
 **症状**: `aws login`で認証したのにBoto3でエラー
