@@ -357,12 +357,13 @@ export class SharedContentConstruct extends Construct {
   public readonly bucket: s3.Bucket;
   public readonly distribution: cloudfront.Distribution;
 
-  constructor(scope: Construct, id: string, nameSuffix: string) {
+  constructor(scope: Construct, id: string) {
     super(scope, id);
 
     // S3バケット（パブリックアクセスブロック有効）
+    // ⚠️ bucketName は指定しない → CFnが自動生成（グローバル一意性を保証、フォーク先でも衝突しない）
     this.bucket = new s3.Bucket(this, 'Bucket', {
-      bucketName: `my-shared-content-${nameSuffix}`,
+      // bucketName を省略 → CDKベストプラクティス
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
@@ -391,7 +392,7 @@ export class SharedContentConstruct extends Construct {
 import { SharedContentConstruct } from './storage/resource';
 
 const customStack = backend.createStack('SharedContentStack');
-const sharedContent = new SharedContentConstruct(customStack, 'SharedContent', nameSuffix);
+const sharedContent = new SharedContentConstruct(customStack, 'SharedContent');
 
 // フロントエンドに出力
 backend.addOutput({

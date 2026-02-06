@@ -37,54 +37,6 @@ export default defineConfig({
 }
 ```
 
-## React コンポーネント設計パターン
-
-### 巨大コンポーネントのカスタムフック分離
-
-コンポーネントが200行以上になったら、ロジックをカスタムフックに分離する：
-
-```typescript
-// hooks/useChatMessages.ts - ロジックを集約
-export function useChatMessages(props: Props) {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  // ... 全てのuseEffect、イベントハンドラ
-
-  return { messages, isLoading, handleSubmit, ... };
-}
-
-// index.tsx - UIレンダリングのみ（40行程度）
-export function Chat(props: ChatProps) {
-  const { messages, isLoading, handleSubmit } = useChatMessages(props);
-  return (
-    <div>
-      <MessageList messages={messages} />
-      <ChatInput onSubmit={handleSubmit} />
-    </div>
-  );
-}
-```
-
-### React.memoでリスト最適化
-
-メッセージリストなど頻繁に更新されるリストでは、個々のアイテムをメモ化：
-
-```tsx
-// React.memoでメッセージの再レンダリングを防止
-export const MessageBubble = memo(function MessageBubble({ message }: Props) {
-  return <div>{message.content}</div>;
-});
-
-// IDベースのkeyで安定したレンダリング（indexは非推奨）
-let _counter = 0;
-export function createMessage(partial: Omit<Message, 'id'>): Message {
-  return { id: `msg-${++_counter}`, ...partial };
-}
-
-// MessageListでIDをkeyに
-{messages.map(msg => <MessageBubble key={msg.id} message={msg} />)}
-```
-
 ## React ストリーミングUI
 
 ### イミュータブル更新（必須）

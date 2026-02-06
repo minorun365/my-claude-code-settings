@@ -241,10 +241,8 @@ agent = Agent(
 LLMの出力をフロントエンドでフィルタリングするのが難しい場合、出力専用のツールを作成してツール経由で出力させる方式が有効。
 
 ```python
-from contextvars import ContextVar
-
-# ContextVarで出力を保持（並行リクエストでも安全）
-_generated_markdown: ContextVar[str | None] = ContextVar('generated_markdown', default=None)
+# グローバル変数で出力を保持
+_generated_markdown: str | None = None
 
 @tool
 def output_slide(markdown: str) -> str:
@@ -256,11 +254,9 @@ def output_slide(markdown: str) -> str:
     Returns:
         出力完了メッセージ
     """
-    _generated_markdown.set(markdown)
+    global _generated_markdown
+    _generated_markdown = markdown
     return "スライドを出力しました。"
-
-def get_generated_markdown() -> str | None:
-    return _generated_markdown.get()
 
 agent = Agent(
     model="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
@@ -374,7 +370,8 @@ async def invoke(payload):
 ```python
 @app.entrypoint
 async def invoke(payload):
-    reset_generated_markdown()  # ContextVarをリセット
+    global _generated_markdown
+    _generated_markdown = None
 
     stream = agent.stream_async(payload.get("prompt", ""))
     async for event in stream:
