@@ -253,6 +253,45 @@ if (!response.ok) {
 }
 ```
 
+### アイドルタイムアウト（2段構成）
+
+SSEストリームに2段階のタイムアウトを設定し、接続障害と推論ハングの両方を検知するパターン：
+
+```typescript
+async function readSSEStream(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  onEvent: (event: Record<string, unknown>) => void,
+  idleTimeoutMs?: number,          // 初回イベント受信前（短め: 10秒）
+  ongoingIdleTimeoutMs?: number    // イベント間（長め: 60秒）
+): Promise<void> {
+  let firstEventReceived = false;
+
+  while (true) {
+    // フェーズに応じてタイムアウト値を切り替え
+    const currentTimeout = firstEventReceived ? ongoingIdleTimeoutMs : idleTimeoutMs;
+    if (currentTimeout) {
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new SSEIdleTimeoutError(currentTimeout)), currentTimeout);
+      });
+      readResult = await Promise.race([reader.read(), timeoutPromise]);
+    } else {
+      readResult = await reader.read();
+    }
+    // ... イベント処理後に firstEventReceived = true
+  }
+}
+```
+
+| フェーズ | タイムアウト | 検知対象 |
+|---------|------------|---------|
+| 初回イベント受信前 | 短め（10秒） | スロットリング、接続エラー |
+| イベント間（初回受信後） | 長め（60秒） | 推論ハング、モデル無応答 |
+
+**設計ポイント**:
+- 初回タイムアウトは短く → ユーザーを素早くエラーに気づかせる
+- イベント間タイムアウトは長めに → 正常な推論やツール実行を妨げない
+- 通常のストリーミングではチャンクが頻繁に来るため、60秒無音は異常と判断できる
+
 ### モック実装（ローカル開発用）
 
 ```typescript
