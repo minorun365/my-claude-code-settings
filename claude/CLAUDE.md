@@ -37,6 +37,7 @@
 | `/kb-amplify-cdk` | Amplify Gen2 + CDK（sandbox、本番デプロイ、Hotswap） |
 | `/kb-frontend` | フロントエンド（React、Tailwind、SSE、Amplify UI） |
 | `/kb-marp` | Marp（スライド生成、テーマ、iOS対応、PDF/PPTX生成） |
+| `/kb-line` | LINE Bot開発（Messaging API、Webhook、署名検証、Push Message、グループチャット対応） |
 | `/kb-aws-diagrams` | AWS Diagram MCP Server（アーキテクチャ図、カスタムアイコン、レイアウト調整） |
 | `/kb-troubleshooting` | トラブルシューティング集（AWS、フロントエンド、Python、LLMアプリ）|
 

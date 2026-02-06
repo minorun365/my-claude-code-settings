@@ -47,6 +47,33 @@ save_models(region, current_models | previous_models)
 
 **教訓**: 定期ポーリング型の差分検知では、外部APIの一時的な不安定性を考慮し、累積方式でデータを保持する。「消えたものを消す」ではなく「増えたものだけ追加する」設計が安全。
 
+### CDK Lambda: ARM64バンドリングでImportModuleError
+
+**症状**: Lambda実行時に `ImportModuleError` が発生（pydantic_core等のネイティブバイナリ）
+
+**原因**: Lambdaに `architecture: ARM_64` を指定したが、バンドリング時の `platform` が一致していない
+
+**解決策**: Lambda定義とバンドリングの両方でARM64を指定
+
+```typescript
+const fn = new lambda.Function(this, 'MyFunction', {
+  runtime: lambda.Runtime.PYTHON_3_13,
+  architecture: lambda.Architecture.ARM_64,  // ARM64を指定
+  code: lambda.Code.fromAsset(path.join(__dirname, '../lambda'), {
+    bundling: {
+      image: lambda.Runtime.PYTHON_3_13.bundlingImage,
+      platform: "linux/arm64",  // ← これが必要！
+      command: [
+        "bash", "-c",
+        "pip install -r requirements.txt -t /asset-output && cp *.py /asset-output",
+      ],
+    },
+  }),
+});
+```
+
+**教訓**: pydantic_core等のCコンパイル済みバイナリはアーキテクチャ不一致で即座にエラーになる。x86_64でビルドしたバイナリはARM64 Lambdaで動かない。
+
 ### Bedrock: AccessDeniedException on inference-profile
 
 **症状**: `AccessDeniedException: bedrock:InvokeModelWithResponseStream on resource: arn:aws:bedrock:*:*:inference-profile/*`
