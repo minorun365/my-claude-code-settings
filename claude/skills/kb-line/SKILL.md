@@ -237,6 +237,16 @@ contentBlockStart(toolUse: name)    → 「○○しています...」ステー�
 
 ---
 
+## LINE ユーザーIDの注意
+
+LINE のユーザーIDは `U` + 32桁の英数字（例: `U56b15391befe93872af9cd62f40fb7aa`）。LINE の表示名（ニックネーム）や LINE ID（検索用ID）とは全く別物。
+
+ユーザーIDの確認方法:
+- Lambda の CloudWatch Logs に `User Uxxxxxxxx` の形式で出力される
+- 各ユーザーに1回メッセージを送ってもらい、ログからIDを収集する
+
+---
+
 ## 環境変数
 
 | 変数名 | 用途 |

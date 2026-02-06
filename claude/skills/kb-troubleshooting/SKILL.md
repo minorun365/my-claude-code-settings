@@ -656,6 +656,24 @@ RUN curl -sL -o /app/fonts/font.ttf "https://github.com/..."
 COPY fonts/ /app/fonts/
 ```
 
+### AgentCore: CDKデプロイ後も環境変数・コードが反映されない
+
+**症状**: CDKデプロイ後にAgentCoreのコード変更やデバッグログが反映されない、環境変数が古いまま
+
+**原因**: AgentCore Runtimeはセッション単位でコンテナをキャッシュする。CDKデプロイしても既存の実行中コンテナは古いコード＆環境変数のまま動き続ける
+
+**解決策**: `stop-runtime-session` で既存セッションを停止してから再テスト
+
+```bash
+aws bedrock-agentcore stop-runtime-session \
+  --runtime-session-id "セッションID" \
+  --agent-runtime-arn "arn:aws:bedrock-agentcore:REGION:ACCOUNT:runtime/RUNTIME_NAME" \
+  --qualifier DEFAULT \
+  --region REGION
+```
+
+**教訓**: AgentCoreのコード・環境変数を変更した場合は、必ず対象セッションを停止してからテストする。デプロイ完了 ≠ 既存コンテナへの反映。
+
 ## デバッグTips
 
 ### Chrome DevTools MCP

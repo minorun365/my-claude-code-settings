@@ -784,6 +784,71 @@ onError: (error) => {
 
 ---
 
+## コンテナライフサイクルと環境変数
+
+### コンテナはセッション単位でキャッシュされる
+
+AgentCore Runtime は `runtimeSessionId` ごとにコンテナをルーティングする。同じセッションIDで呼び出すと同じコンテナが再利用される。
+
+- デフォルトのアイドルタイムアウト: 900秒（15分）
+- デフォルトの最大ライフタイム: 28800秒（8時間）
+
+### CDK デプロイしてもコンテナはすぐに入れ替わらない
+
+`npx cdk deploy` でコード・環境変数を更新しても、**既存の実行中コンテナは古いコード＆環境変数のまま動き続ける**。新しい設定が反映されるのは新規に起動されるコンテナのみ。
+
+**対処法**: `stop-runtime-session` で既存セッションを停止
+
+```bash
+aws bedrock-agentcore stop-runtime-session \
+  --runtime-session-id "セッションID" \
+  --agent-runtime-arn "arn:aws:bedrock-agentcore:REGION:ACCOUNT:runtime/RUNTIME_NAME" \
+  --qualifier DEFAULT \
+  --region REGION
+```
+
+次回の呼び出し時に新しいコンテナが起動し、最新のコード・環境変数が反映される。セッション停止後は会話履歴（エージェント内のメモリ）もリセットされる。
+
+---
+
+## ツール単位のアクセス制御パターン
+
+特定のツールだけを許可されたユーザーに制限し、他のツールは誰でも使えるようにする方式。
+
+### 実装パターン
+
+1. **呼び出し元からペイロードに `user_id` を含める**
+2. **エージェント側で `ALLOWED_USER_IDS` 環境変数を読み込む**（モジュールレベル、コンテナ起動時に1回）
+3. **制限対象のツール内でユーザーIDを照合**し、不一致なら拒否メッセージを返す
+
+```python
+ALLOWED_USER_IDS = set(
+    uid.strip()
+    for uid in os.environ.get("ALLOWED_USER_IDS", "").split(",")
+    if uid.strip()
+)
+_current_user_id: str | None = None
+
+@tool
+def restricted_tool() -> str:
+    """許可されたユーザーのみ使用可能なツール"""
+    if ALLOWED_USER_IDS and _current_user_id not in ALLOWED_USER_IDS:
+        return "この機能は許可されたユーザーのみ利用できます。"
+    # ... 本来の処理
+
+@app.entrypoint
+async def invoke_agent(payload, context):
+    global _current_user_id
+    _current_user_id = payload.get("user_id")
+    # ...
+```
+
+**ポイント**:
+- 空の `ALLOWED_USER_IDS`（= 未設定）の場合は全員許可（`if ALLOWED_USER_IDS and ...`）
+- `ALLOWED_USER_IDS` はモジュールレベルで読み込まれるため、変更時はセッション停止が必要
+
+---
+
 ## トラブルシューティング
 
 ### AWS認証エラー
