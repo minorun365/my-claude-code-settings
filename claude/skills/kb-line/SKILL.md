@@ -57,7 +57,7 @@ const lambdaIntegration = new apigateway.AwsIntegration({
 | Reply Message | replyToken必須（30秒有効）、無料 | 同期処理向け |
 | Push Message | user_id/group_id指定、月200通（無料枠） | 非同期処理向け |
 
-非同期Lambda呼び出しの場合、replyTokenが30秒で失効するため **Push Messageのみ使用** する。
+非同期Lambda呼び出しの場合、replyTokenが30秒で失効するため **Push Messageのみ使用** する。Push Messageは月の無料枠（コミュニケーションプラン: 200通）があるため、SSEストリーミングで細かく送信すると枠を使い切りやすい。
 
 ---
 
@@ -194,19 +194,63 @@ reply_to = (
 
 ---
 
+## Push Message のレート制限と月間上限
+
+### レート制限（秒単位）
+
+| エンドポイント | レート制限 |
+|---|---|
+| Push Message | 2,000 req/s（チャネル単位） |
+| Loading Animation | 100 req/s |
+| Multicast | 200 req/s |
+
+- レート制限はチャネル単位で適用
+- 429レスポンスに `Retry-After` ヘッダーは含まれない
+- LINE公式は429を「リトライすべきでない4xx」に分類 → リトライではなくスロットリング（頻度低減）が正しい対処
+
+### 月間メッセージ上限
+
+無料プラン（コミュニケーションプラン）は **月200通** が上限。超過すると429エラー:
+```json
+{"message": "You have reached your monthly limit."}
+```
+
+SSEストリーミングで `contentBlockStop` ごとにPush Messageを送ると、1回の対話で多数の通数を消費してしまう。通数節約のために最終ブロックのみ送信する方式を推奨。
+
+---
+
 ## SSE → Push Message 変換パターン
 
-AIエージェント（AgentCore等）のSSEストリーミングをリアルタイムにLINE Push Messageに変換するパターン。
+AIエージェント（AgentCore等）のSSEストリーミングをLINE Push Messageに変換するパターン。
 
-### テキストバッファリング戦略
+### 方式A: 最終ブロックのみ送信（通数節約・推奨）
+
+ツールステータスだけリアルタイム送信し、テキストは最終ブロックのみ1通で送信する方式。月間メッセージ上限の節約に有効。
 
 ```python
-TOOL_STATUS_MAP = {
-    "http_request": "カレンダーを確認しています...",
-    "current_time": "現在時刻を確認しています...",
-    "web_search": "ウェブ検索しています...",
-}
+text_buffer = ""
+last_text_block = ""
 
+# contentBlockDelta → バッファに蓄積
+text_buffer += text
+
+# contentBlockStop → 最終ブロック候補として保持（送信しない）
+last_text_block = text_buffer.strip()
+text_buffer = ""
+
+# ツール開始 → バッファを破棄（途中応答は不要）してステータス送信
+text_buffer = ""
+throttled_send(status_text)
+
+# SSE完了後 → 最終ブロックのみ送信
+send_push_message(reply_to, last_text_block[:5000])
+```
+
+ツールを使わない場合（AIからの質問返し等）も、唯一のテキストブロックが最終ブロックとなるため正常に動作する。
+
+### 方式B: contentBlockStop ごとに送信（ストリーミング体験重視）
+
+```python
 text_buffer = ""
 
 def flush_text_buffer():
@@ -216,16 +260,39 @@ def flush_text_buffer():
         text_buffer = ""
 ```
 
+通数を多く消費するため、有料プランでのみ推奨。
+
 ### SSEイベントとLINEメッセージの対応
 
 ```
-SSEイベント                              LINEに送るPush Message
-──────────────────────────────────    ──────────────────────────
-contentBlockDelta(text: "...")      → テキストバッファに蓄積
-contentBlockStop                    → バッファをflush → Push Message送信
-contentBlockStart(toolUse: name)    → 「○○しています...」ステータス送信
-[DONE]                              → 処理完了
+SSEイベント                              方式A                    方式B
+──────────────────────────────────    ─────────────────────    ─────────────────────
+contentBlockDelta(text: "...")      → バッファに蓄積          → バッファに蓄積
+contentBlockStop                    → last_text_blockに保持   → flush → Push Message
+contentBlockStart(toolUse: name)    → ステータス送信          → flush + ステータス送信
+[DONE]                              → last_text_block送信     → 処理完了
 ```
+
+### 送信スロットリング
+
+429エラー防止のため、Push Message送信に最低1秒の間隔を設ける:
+
+```python
+import time
+
+last_send_time = 0.0
+MIN_SEND_INTERVAL = 1.0
+
+def throttled_send(text: str) -> None:
+    nonlocal last_send_time
+    elapsed = time.time() - last_send_time
+    if elapsed < MIN_SEND_INTERVAL:
+        time.sleep(MIN_SEND_INTERVAL - elapsed)
+    send_push_message(reply_to, text)
+    last_send_time = time.time()
+```
+
+非同期Lambda呼び出しのため、`time.sleep`でLambda実行時間が伸びてもLINEのレスポンスには影響しない。
 
 ### UXのコツ
 

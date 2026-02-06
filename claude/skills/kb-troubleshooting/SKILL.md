@@ -232,6 +232,20 @@ aws amplify update-app \
 2. Build image → Custom Build Image を選択
 3. イメージ名: `public.ecr.aws/codebuild/amazonlinux-x86_64-standard:5.0`
 
+### LINE Push Message: 429 月間メッセージ上限
+
+**症状**: Push Message送信時に429エラー `{"message":"You have reached your monthly limit."}`
+
+**原因**: 無料プラン（コミュニケーションプラン）の月200通上限に到達。SSEストリーミングで `contentBlockStop` ごとにPush Messageを送ると、1回の対話でツール通知+テキストブロック数だけ通数を消費する。
+
+**解決策**: 最終テキストブロックのみ送信する方式に変更
+- `contentBlockDelta` → バッファに蓄積
+- `contentBlockStop` → `last_text_block` に保持（送信しない）
+- ツール開始時 → バッファ破棄 + ステータスメッセージのみ送信
+- SSE完了後 → `last_text_block` を1通だけ送信
+
+**補足**: レート制限（2,000 req/s）とは別物。`Retry-After`ヘッダーは返されない。LINE公式は429を「リトライすべきでない4xx」に分類。
+
 ## フロントエンド関連
 
 ### OGP/Twitterカード: 画像が表示されない
