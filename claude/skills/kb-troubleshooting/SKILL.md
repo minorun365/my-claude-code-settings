@@ -25,6 +25,28 @@ const idToken = session.tokens?.idToken?.toString();
 const accessToken = session.tokens?.accessToken?.toString();
 ```
 
+### Bedrock Model Detector: 重複通知メール
+
+**症状**: 新モデルリリース時に同じモデルの通知メールが複数回届く
+
+**原因**: DynamoDBの「上書き保存」方式 + リリース直後のAPI不安定性の組み合わせ
+
+1. T=0: APIに新モデル出現 → 検出・通知 → DynamoDBに保存
+2. T=5: APIから一時的にモデルが消失 → DynamoDBをモデルなしで上書き
+3. T=10: APIに再出現 → 再び「新モデル」として検出 → 重複通知
+
+**解決策**: DynamoDBの保存を和集合（union）方式に変更。一度検出されたモデルはDBから消えないようにする
+
+```python
+# NG: APIの応答でそのまま上書き（モデルが消えるとDBからも消える）
+save_models(region, current_models)
+
+# OK: 前回のデータとの和集合で保存（一度検出されたモデルは残る）
+save_models(region, current_models | previous_models)
+```
+
+**教訓**: 定期ポーリング型の差分検知では、外部APIの一時的な不安定性を考慮し、累積方式でデータを保持する。「消えたものを消す」ではなく「増えたものだけ追加する」設計が安全。
+
 ### Bedrock: AccessDeniedException on inference-profile
 
 **症状**: `AccessDeniedException: bedrock:InvokeModelWithResponseStream on resource: arn:aws:bedrock:*:*:inference-profile/*`
