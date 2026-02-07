@@ -38,7 +38,7 @@
 | `/kb-frontend` | フロントエンド（React、Tailwind、SSE、Amplify UI） |
 | `/kb-marp` | Marp（スライド生成、テーマ、iOS対応、PDF/PPTX生成） |
 | `/kb-line` | LINE Bot開発（Messaging API、Webhook、署名検証、Push Message、グループチャット対応） |
-| `/kb-aws-diagrams` | AWS Diagram MCP Server（アーキテクチャ図、カスタムアイコン、レイアウト調整） |
+| `/draw-architecture` | AWSアーキテクチャ図を生成（diagrams/Python、カスタムアイコン同梱） |
 | `/kb-troubleshooting` | トラブルシューティング集（AWS、フロントエンド、Python、LLMアプリ）|
 
 プロジェクト固有でない汎用的な学びを得たら `/sync-knowledge` で追記する。

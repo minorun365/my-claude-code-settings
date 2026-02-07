@@ -1,12 +1,12 @@
 ---
-name: kb-aws-diagrams
-description: AWS Diagram MCP Server（アーキテクチャ図、カスタムアイコン、レイアウト調整）
+name: draw-architecture
+description: AWSアーキテクチャ図を生成する。diagrams(Python)ライブラリ + カスタムアイコンでPNG出力
 user-invocable: true
 ---
 
-# AWS Diagram MCP Server ナレッジベース
+# AWSアーキテクチャ図生成
 
-AWS Diagram MCP Serverを使ったアーキテクチャ図作成のベストプラクティス集。
+Pythonの`diagrams`ライブラリを使ってAWSアーキテクチャ図を生成するスキル。カスタムアイコン同梱。
 
 ## 基本的なワークフロー
 
@@ -43,7 +43,7 @@ agentcore = Custom("AgentCore Runtime", agentcore_icon)
 このスキルにはよく使うアイコンが同梱されています：
 
 ```
-~/.claude/skills/kb-aws-diagrams/icons/
+~/.claude/skills/draw-architecture/icons/
 ├── strands-agents.png              # Strands Agents
 ├── Arch_Amazon-Bedrock_64.png      # Bedrock
 ├── Arch_Amazon-Bedrock-AgentCore_64.png  # AgentCore（最新）
@@ -61,7 +61,7 @@ agentcore = Custom("AgentCore Runtime", agentcore_icon)
 
 ```python
 import os
-ICON_DIR = os.path.expanduser("~/.claude/skills/kb-aws-diagrams/icons")
+ICON_DIR = os.path.expanduser("~/.claude/skills/draw-architecture/icons")
 
 agentcore_icon = f"{ICON_DIR}/Arch_Amazon-Bedrock-AgentCore_64.png"
 strands_icon = f"{ICON_DIR}/strands-agents.png"
