@@ -54,7 +54,11 @@ agentcore = Custom("AgentCore Runtime", agentcore_icon)
 ├── Arch_AWS-Lambda_64.png          # Lambda
 ├── Arch_Amazon-API-Gateway_64.png  # API Gateway
 ├── Arch_Amazon-CloudFront_64.png   # CloudFront
-└── Arch_Amazon-Elastic-Container-Service_64.png  # ECS
+├── Arch_Amazon-Elastic-Container-Service_64.png  # ECS
+├── outlook.png                     # Microsoft Outlook
+├── microsoft-todo.png              # Microsoft To Do
+├── confluence.png                  # Confluence
+└── entra.png                       # Microsoft Entra ID
 ```
 
 **使用例:**
