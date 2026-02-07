@@ -10,9 +10,25 @@ Pythonの`diagrams`ライブラリを使ってAWSアーキテクチャ図を生�
 
 ## 基本的なワークフロー
 
-1. **`list_icons`** でアイコン一覧を取得
-2. **`get_diagram_examples`** で例を確認（aws, custom 等）
-3. **`generate_diagram`** で図を生成
+### Step 0: 依存チェック（図を生成する前に必ず実行）
+
+以下のコマンドで依存関係を確認し、不足していれば自動インストールする：
+
+```bash
+# graphviz バイナリ（dot コマンド）のチェック＆インストール
+which dot || brew install graphviz
+
+# Python diagrams パッケージのチェック＆インストール
+python -c "import diagrams" 2>/dev/null || pip install diagrams
+```
+
+**これを省略すると `ModuleNotFoundError` や `ExecutableNotFound` でコケるので必ず先に実行すること。**
+
+### Step 1〜3: 図の生成
+
+1. 同梱アイコン一覧（下記）を確認し、必要なアイコンを選定
+2. Python スクリプトを `/tmp/` に書き出し
+3. `python /tmp/スクリプト名.py` で図を生成
 
 ## Diagram Generation
 
