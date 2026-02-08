@@ -37,7 +37,7 @@ uv add 'botocore[crt]'
 
 ### Observability（トレース）対応
 
-AgentCore Observability でトレースを出力する場合、以下の3点が必要：
+AgentCore Observability でトレースを出力する場合、以下の4点が必要：
 
 1. **requirements.txt**
 ```
@@ -60,7 +60,20 @@ environmentVariables: {
 }
 ```
 
-**注意**: 上記3つすべてが必要。1つでも欠けるとトレースが出力されない。
+4. **import パス**（トップレベルから import すること）
+```python
+# OK: トレースが出力される
+from bedrock_agentcore import BedrockAgentCoreApp
+
+# NG: トレースが出力されない（ログ・メトリクスは出るがトレースだけ欠落）
+from bedrock_agentcore.runtime import BedrockAgentCoreApp
+```
+
+**注意**: 上記4つすべてが必要。1つでも欠けるとトレースが出力されない。
+
+### import パスの罠: runtime サブモジュール経由だとトレースが出ない
+
+`from bedrock_agentcore.runtime import BedrockAgentCoreApp` を使うと、内部的には同じクラスが動くにもかかわらず、GenAI Observability の Traces View にトレースが一切表示されない。OTel のログ・メトリクスは正常に出力されるため、影響を受けるのはトレース（X-Ray スパン）のエクスポートのみ。SDK のトップレベル `__init__.py` での Observability 初期化フックに乗らないことが原因と推測される。
 
 ---
 

@@ -92,7 +92,7 @@ resources: [
 
 **症状**: AgentCore Observability ダッシュボードでメトリクスが全て0、トレースが表示されない
 
-**原因**: CDKでデプロイする場合、以下の3つすべてが必要（1つでも欠けるとトレースが出ない）
+**原因**: CDKでデプロイする場合、以下の4つすべてが必要（1つでも欠けるとトレースが出ない）
 
 **解決策チェックリスト**:
 
@@ -118,20 +118,31 @@ resources: [
    }
    ```
 
-4. **CloudWatch Transaction Search**（アカウントごとに1回）
+4. **import パス**（最重要！見落としやすい）
+   - [x] `from bedrock_agentcore import BedrockAgentCoreApp` を使用
+   - `from bedrock_agentcore.runtime import BedrockAgentCoreApp` だとトレースが出ない
+   - ログ・メトリクスは両パスで正常出力されるため、トレースだけ欠落していて気づきにくい
+   ```python
+   # OK
+   from bedrock_agentcore import BedrockAgentCoreApp
+   # NG（トレースが出力されない）
+   from bedrock_agentcore.runtime import BedrockAgentCoreApp
+   ```
+
+5. **CloudWatch Transaction Search**（アカウントごとに1回）
    ```bash
    # 状態確認
    aws xray get-trace-segment-destination --region us-east-1
    # Destination: CloudWatchLogs, Status: ACTIVE であること
    ```
 
-5. **ログポリシー**（アカウントごとに1回）
+6. **ログポリシー**（アカウントごとに1回）
    ```bash
    aws logs describe-resource-policies --region us-east-1
    # TransactionSearchXRayAccess ポリシーが存在すること
    ```
 
-**重要**: 1〜3はすべて必須。1つでも欠けるとトレースが出力されない。
+**重要**: 1〜4はすべて必須。1つでも欠けるとトレースが出力されない。特に4番の import パスは、内部的に同じクラスが動くため見落としやすい。
 
 ### S3 Vectors: Filterable metadata must have at most 2048 bytes
 
