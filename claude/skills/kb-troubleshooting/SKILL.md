@@ -657,6 +657,44 @@ cdk.Tags.of(agentCoreStack).add('Project', 'presales');
 cdk.Tags.of(backend.auth.stack).add('Project', 'presales');
 ```
 
+### Amplify defineFunction: @aws-sdk モジュール解決エラー
+
+**症状**:
+```
+✘ [ERROR] Could not resolve "@aws-sdk/client-cognito-identity-provider"
+```
+Amplifyビルド（`npx ampx pipeline-deploy`）でesbuildがSDKモジュールを解決できない
+
+**原因**: Amplify Gen2の`defineFunction`はAWS SDKパッケージを自動でexternalにしない。Lambda実行時にはSDKが利用可能だが、ビルド時にnode_modulesに存在しないとesbuildがエラーを出す
+
+**解決策**: 必要なSDKパッケージを明示的にインストール
+```bash
+npm install @aws-sdk/client-cognito-identity-provider @aws-sdk/client-sts
+```
+
+### Cognito Migration Trigger: Lambdaが発火しない
+
+**症状**: Migration Lambdaが設定済みだが、既存ユーザーのサインイン時にLambdaが発火しない（CloudWatch Logsにロググループすら作成されない）
+
+**原因**: Amplify UIの`<Authenticator>`はデフォルトで`USER_SRP_AUTH`を使用。SRPではパスワードが暗号化されてCognitoに送信されるため、Migration TriggerにパスワードがlMlambdaに渡されず発火しない
+
+**解決策**: Authenticatorの`services` propで`USER_PASSWORD_AUTH`フローを使うようオーバーライド
+
+```tsx
+import { signIn } from 'aws-amplify/auth';
+
+<Authenticator
+  services={{
+    handleSignIn: (input) => signIn({
+      ...input,
+      options: { authFlowType: 'USER_PASSWORD_AUTH' }
+    }),
+  }}
+>
+```
+
+**注意**: `USER_PASSWORD_AUTH`はパスワードを平文で送信する。移行完了後は`services`オーバーライドを削除してデフォルトのSRPに戻すこと
+
 ### dotenv: .env.local が読み込まれない
 
 **症状**: `.env.local`に環境変数を設定したが、Node.js（Amplify CDK等）で読み込まれない

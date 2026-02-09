@@ -434,6 +434,31 @@ const authComponents = {
 - Header: アプリ名、利用ガイド、ロゴ
 - Footer: プライバシーポリシー、免責事項、メールアドレスの利用目的
 
+### 認証フローの変更（services prop）
+
+Authenticatorのデフォルト認証フローを変更する場合、`services` propで `handleSignIn` をオーバーライドする。
+
+```tsx
+import { signIn } from 'aws-amplify/auth';
+
+<Authenticator
+  components={authComponents}
+  services={{
+    handleSignIn: (input) => signIn({
+      ...input,
+      options: { authFlowType: 'USER_PASSWORD_AUTH' }
+    }),
+  }}
+>
+```
+
+**主なユースケース**: Cognito User Migration Trigger。Migration TriggerはパスワードがLambdaに平文で渡される `USER_PASSWORD_AUTH` フローでのみ発火する。デフォルトの `USER_SRP_AUTH` では発火しない。
+
+| 認証フロー | パスワード | Migration Trigger |
+|-----------|-----------|-------------------|
+| `USER_SRP_AUTH`（デフォルト） | 暗号化して送信 | 発火しない |
+| `USER_PASSWORD_AUTH` | 平文で送信 | 発火する |
+
 ### 認証画面の配色カスタマイズ（CSS方式）
 
 `createTheme`/`ThemeProvider`ではグラデーションが使えないため、CSSで直接スタイリングするのが確実。

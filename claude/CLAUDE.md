@@ -7,10 +7,21 @@
 
 # AWS関連
 - AWSリージョンはバージニア北部（us-east-1）、オレゴン（us-west-2）、東京（ap-northeast-1）を使うことが多いです。
-- ローカル環境でのAWS認証は以下のプロファイルを使用する：
-  - **個人Orgアカウント**: `aws sso login --profile sandbox`
-  - **ビジネスOrgアカウント**: `aws sso login --profile kag-sandbox`
-  - プロジェクトでどちらのアカウントを使うべきか不明な場合は、必ずみのるんに確認すること。
+- ローカル環境でのAWS認証にはSSO認証を使用する。プロファイルの一覧はプロジェクトスコープの設定を参照すること。
+  - プロジェクトでどのアカウントを使うべきか不明な場合は、必ずみのるんに確認すること。
+
+### プロジェクトスコープの個人設定（PC別にセットアップが必要）
+
+以下のファイルは `/sync-settings` の同期対象外のため、各PCで個別に設定する。
+ホームディレクトリで作業する際に読み込まれ、AWSプロファイル等の個人情報を安全に管理できる。
+
+- **設定ファイル**: `~/.claude/projects/-Users-<ユーザー名>/CLAUDE.md`
+- **メモリ**: `~/.claude/projects/-Users-<ユーザー名>/memory/`
+
+設定すべき内容：
+1. AWS SSOプロファイル一覧（個人Org / ビジネスOrg / マスターアカウント）
+2. アカウントIDやドメイン名などの詳細 → `memory/aws-accounts.md`
+3. その他PC固有・個人固有の情報
 - よく使うBedrockのClaudeモデルIDは `us.anthropic.claude-sonnet-4-5-20250929-v1:0` と `us.anthropic.claude-haiku-4-5-20251001-v1:0` です。
 
 ## AWS / Cloud Operations

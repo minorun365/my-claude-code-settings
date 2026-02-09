@@ -524,6 +524,76 @@ TEST_USER_PASSWORD=TestPass123!
 
 ---
 
+## Cognito User Migration Trigger（Lambda移行）
+
+### 概要
+
+既存のCognitoユーザーを新しいUserPoolに透過的に移行する仕組み。ユーザーはいつも通りサインインするだけで自動移行される。
+
+### Amplify Gen2での実装
+
+#### 1. Migration Lambda（defineFunction）
+
+```typescript
+// amplify/auth/user-migration/resource.ts
+import { defineFunction } from '@aws-amplify/backend';
+
+export const userMigration = defineFunction({
+  name: 'user-migration',
+  entry: './handler.ts',
+  environment: {
+    OLD_USER_POOL_ID: process.env.OLD_USER_POOL_ID || '',
+    OLD_USER_POOL_CLIENT_ID: process.env.OLD_USER_POOL_CLIENT_ID || '',
+    OLD_ACCOUNT_ROLE_ARN: process.env.OLD_ACCOUNT_ROLE_ARN || '',
+  },
+  timeoutSeconds: 15,
+});
+```
+
+#### 2. auth/resource.ts にトリガー登録
+
+```typescript
+import { defineAuth } from '@aws-amplify/backend';
+import { userMigration } from './user-migration/resource';
+
+export const auth = defineAuth({
+  loginWith: { email: true },
+  triggers: { userMigration },
+});
+```
+
+#### 3. backend.ts でIAM権限 + AuthFlow設定
+
+```typescript
+// defineBackendにuserMigrationを登録
+const backend = defineBackend({ auth, userMigration });
+
+// Migration LambdaにSTS AssumeRole権限を付与
+backend.userMigration.resources.lambda.addToRolePolicy(new iam.PolicyStatement({
+  actions: ['sts:AssumeRole'],
+  resources: [oldAccountRoleArn],
+}));
+
+// App ClientでUSER_PASSWORD_AUTHを有効化（移行期間中のみ）
+const cfnClient = backend.auth.resources.userPoolClient.node
+  .defaultChild as cognito.CfnUserPoolClient;
+cfnClient.explicitAuthFlows = [
+  'ALLOW_CUSTOM_AUTH',
+  'ALLOW_USER_PASSWORD_AUTH',
+  'ALLOW_USER_SRP_AUTH',
+  'ALLOW_REFRESH_TOKEN_AUTH',
+];
+```
+
+### defineFunction で @aws-sdk/* を使う場合
+
+**Amplify Gen2の`defineFunction`はAWS SDKを自動でexternalにしない**。Lambda実行時にSDKは利用可能だが、ビルド時（esbuild）にモジュール解決できずエラーになる。
+
+```bash
+# 必要なSDKパッケージを明示的にインストール
+npm install @aws-sdk/client-cognito-identity-provider @aws-sdk/client-sts
+```
+
 ## よくあるエラー
 
 ### amplify_outputs.json が見つからない
