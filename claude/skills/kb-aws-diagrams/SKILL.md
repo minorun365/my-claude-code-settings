@@ -1,34 +1,18 @@
 ---
-name: draw-architecture
-description: AWSアーキテクチャ図を生成する。diagrams(Python)ライブラリ + カスタムアイコンでPNG出力
+name: kb-aws-diagrams
+description: AWS Diagram MCP Server（アーキテクチャ図、カスタムアイコン、レイアウト調整）
 user-invocable: true
 ---
 
-# AWSアーキテクチャ図生成
+# AWS Diagram MCP Server ナレッジベース
 
-Pythonの`diagrams`ライブラリを使ってAWSアーキテクチャ図を生成するスキル。カスタムアイコン同梱。
+AWS Diagram MCP Serverを使ったアーキテクチャ図作成のベストプラクティス集。
 
 ## 基本的なワークフロー
 
-### Step 0: 依存チェック（図を生成する前に必ず実行）
-
-以下のコマンドで依存関係を確認し、不足していれば自動インストールする：
-
-```bash
-# graphviz バイナリ（dot コマンド）のチェック＆インストール
-which dot || brew install graphviz
-
-# Python diagrams パッケージのチェック＆インストール
-python -c "import diagrams" 2>/dev/null || pip install diagrams
-```
-
-**これを省略すると `ModuleNotFoundError` や `ExecutableNotFound` でコケるので必ず先に実行すること。**
-
-### Step 1〜3: 図の生成
-
-1. 同梱アイコン一覧（下記）を確認し、必要なアイコンを選定
-2. Python スクリプトを `/tmp/` に書き出し
-3. `python /tmp/スクリプト名.py` で図を生成
+1. **`list_icons`** でアイコン一覧を取得
+2. **`get_diagram_examples`** で例を確認（aws, custom 等）
+3. **`generate_diagram`** で図を生成
 
 ## Diagram Generation
 
@@ -59,7 +43,7 @@ agentcore = Custom("AgentCore Runtime", agentcore_icon)
 このスキルにはよく使うアイコンが同梱されています：
 
 ```
-~/.claude/skills/draw-architecture/icons/
+~/.claude/skills/kb-aws-diagrams/icons/
 ├── strands-agents.png              # Strands Agents
 ├── Arch_Amazon-Bedrock_64.png      # Bedrock
 ├── Arch_Amazon-Bedrock-AgentCore_64.png  # AgentCore（最新）
@@ -70,18 +54,14 @@ agentcore = Custom("AgentCore Runtime", agentcore_icon)
 ├── Arch_AWS-Lambda_64.png          # Lambda
 ├── Arch_Amazon-API-Gateway_64.png  # API Gateway
 ├── Arch_Amazon-CloudFront_64.png   # CloudFront
-├── Arch_Amazon-Elastic-Container-Service_64.png  # ECS
-├── outlook.png                     # Microsoft Outlook
-├── microsoft-todo.png              # Microsoft To Do
-├── confluence.png                  # Confluence
-└── entra.png                       # Microsoft Entra ID
+└── Arch_Amazon-Elastic-Container-Service_64.png  # ECS
 ```
 
 **使用例:**
 
 ```python
 import os
-ICON_DIR = os.path.expanduser("~/.claude/skills/draw-architecture/icons")
+ICON_DIR = os.path.expanduser("~/.claude/skills/kb-aws-diagrams/icons")
 
 agentcore_icon = f"{ICON_DIR}/Arch_Amazon-Bedrock-AgentCore_64.png"
 strands_icon = f"{ICON_DIR}/strands-agents.png"

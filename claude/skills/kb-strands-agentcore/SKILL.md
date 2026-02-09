@@ -862,6 +862,38 @@ async def invoke_agent(payload, context):
 
 ---
 
+## LLM にやらせてはいけない計算
+
+### 日付→曜日の変換
+
+LLM は日付から曜日を計算するのが苦手（既知の弱点）。`strands_tools` の `current_time` は ISO 8601 形式（例: `2026-02-09T02:46:56+00:00`）を返すが、曜日情報が含まれないため LLM が誤認識する。
+
+**実例**: 2026年2月9日（月曜日）を LLM が「日曜日」と誤認識
+
+**原則**: LLM に計算させず、ツール側で確定情報を返す。
+
+```python
+from datetime import datetime, timezone, timedelta
+from strands import tool
+
+JST = timezone(timedelta(hours=9))
+WEEKDAY_JA = ["月", "火", "水", "木", "金", "土", "日"]
+
+@tool
+def current_time() -> str:
+    """現在の日本時間（JST）を曜日付きで取得します。"""
+    now = datetime.now(JST)
+    weekday = WEEKDAY_JA[now.weekday()]
+    return f"{now.year}年{now.month}月{now.day}日({weekday}) {now.strftime('%H:%M')} JST"
+```
+
+**ポイント**:
+- タイムゾーン変換もツール側で完結させる（システムプロンプトの「+9時間して」は不確実）
+- `Python の weekday()` は月曜=0 なので日本語曜日配列のインデックスと一致する
+- `strands_tools.current_time` の代わりにカスタムツールを使う
+
+---
+
 ## トラブルシューティング
 
 ### AWS認証エラー

@@ -257,6 +257,27 @@ aws amplify update-app \
 
 **補足**: レート制限（2,000 req/s）とは別物。`Retry-After`ヘッダーは返されない。LINE公式は429を「リトライすべきでない4xx」に分類。
 
+### LLM の曜日誤認識（strands_tools current_time）
+
+**症状**: エージェントが日付の曜日を間違える（例: 月曜日を日曜日と回答）
+
+**原因**: `strands_tools` の `current_time` は ISO 8601 形式（`2026-02-09T02:46:56+00:00`）を返すが、曜日情報が含まれない。LLM が自力で曜日を推測して間違える（LLM は日付→曜日の変換が苦手）
+
+**解決策**: カスタムツールで JST＋曜日を直接返す
+
+```python
+JST = timezone(timedelta(hours=9))
+WEEKDAY_JA = ["月", "火", "水", "木", "金", "土", "日"]
+
+@tool
+def current_time() -> str:
+    now = datetime.now(JST)
+    weekday = WEEKDAY_JA[now.weekday()]
+    return f"{now.year}年{now.month}月{now.day}日({weekday}) {now.strftime('%H:%M')} JST"
+```
+
+**教訓**: LLM に計算させず、ツール側で確定した情報を返す。タイムゾーン変換もシステムプロンプト指示ではなくツール側で完結させる。
+
 ## フロントエンド関連
 
 ### OGP/Twitterカード: 画像が表示されない
