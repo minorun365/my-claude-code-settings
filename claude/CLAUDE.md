@@ -19,7 +19,7 @@
 - **メモリ**: `~/.claude/projects/-Users-<ユーザー名>/memory/`
 
 設定すべき内容：
-1. AWS SSOプロファイル一覧（個人Org / ビジネスOrg / マスターアカウント）
+1. AWS SSOプロファイル一覧（個人Orgマスター / 個人Orgメンバー / ビジネスOrgメンバー）
 2. アカウントIDやドメイン名などの詳細 → `memory/aws-accounts.md`
 3. その他PC固有・個人固有の情報
 - よく使うBedrockのClaudeモデルIDは `us.anthropic.claude-sonnet-4-5-20250929-v1:0` と `us.anthropic.claude-haiku-4-5-20251001-v1:0` です。
