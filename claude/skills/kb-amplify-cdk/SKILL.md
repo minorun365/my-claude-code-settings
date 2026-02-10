@@ -594,6 +594,81 @@ cfnClient.explicitAuthFlows = [
 npm install @aws-sdk/client-cognito-identity-provider @aws-sdk/client-sts
 ```
 
+## カスタムドメイン設定
+
+### Amplifyのドメイン所有権検証
+
+Amplifyカスタムドメインを設定する際、サブドメインのDNSレコードは **CNAMEレコード** で設定する必要がある。
+
+```bash
+# NG: Aレコード（Alias）→ 所有権検証が通らない
+aws route53 change-resource-record-sets --change-batch '{
+  "Changes": [{
+    "Action": "UPSERT",
+    "ResourceRecordSet": {
+      "Name": "myapp.example.com",
+      "Type": "A",
+      "AliasTarget": {
+        "HostedZoneId": "Z2FDTNDATAQYW2",
+        "DNSName": "dXXXXXX.cloudfront.net",
+        "EvaluateTargetHealth": false
+      }
+    }
+  }]
+}'
+
+# OK: CNAMEレコード → 即座に検証通過
+aws route53 change-resource-record-sets --change-batch '{
+  "Changes": [{
+    "Action": "UPSERT",
+    "ResourceRecordSet": {
+      "Name": "myapp.example.com",
+      "Type": "CNAME",
+      "TTL": 300,
+      "ResourceRecords": [{"Value": "dXXXXXX.cloudfront.net"}]
+    }
+  }]
+}'
+```
+
+### 複数サブドメインが紐づくドメインの管理
+
+1つのAmplifyアプリに複数のサブドメインが紐づいている場合:
+
+```bash
+# NG: delete-domain-association → 全サブドメインが消える
+aws amplify delete-domain-association --domain-name example.com
+
+# OK: update-domain-association → 残したいサブドメインだけ指定
+aws amplify update-domain-association \
+  --app-id <app-id> \
+  --domain-name example.com \
+  --sub-domain-settings prefix=keep-this,branchName=main
+```
+
+### カスタムドメイン設定の手順（CLIベース）
+
+```bash
+# 1. 新Amplifyにドメイン追加
+aws amplify create-domain-association \
+  --app-id <app-id> \
+  --domain-name example.com \
+  --sub-domain-settings prefix=myapp,branchName=main
+
+# 2. 出力されたCNAMEレコードをRoute 53に設定
+#    - SSL証明書検証用CNAME（_xxxx.example.com）
+#    - サブドメインのCNAME（myapp.example.com → dXXXXXX.cloudfront.net）
+
+# 3. ステータス確認（AVAILABLE になれば完了）
+aws amplify get-domain-association \
+  --app-id <app-id> \
+  --domain-name example.com
+```
+
+ステータス遷移: `CREATING` → `PENDING_VERIFICATION` → `PENDING_DEPLOYMENT` → `AVAILABLE`
+
+---
+
 ## よくあるエラー
 
 ### amplify_outputs.json が見つからない

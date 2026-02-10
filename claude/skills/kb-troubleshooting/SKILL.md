@@ -657,6 +657,27 @@ cdk.Tags.of(agentCoreStack).add('Project', 'presales');
 cdk.Tags.of(backend.auth.stack).add('Project', 'presales');
 ```
 
+### Amplify カスタムドメイン: 所有権検証が通らない（PENDING_VERIFICATION）
+
+**症状**: `create-domain-association` でカスタムドメインを追加したが、`PENDING_VERIFICATION` のまま何十分待っても `AVAILABLE` にならない
+
+**原因**: サブドメインのDNSレコードをAレコード（Alias）で設定していた。Amplifyの所有権検証は **CNAMEレコード** を要求する
+
+**解決策**: AレコードをCNAMEレコードに変更する
+
+```bash
+# NG: Aレコード（Alias）→ 検証が通らない
+"Type": "A",
+"AliasTarget": { "DNSName": "dXXXXXX.cloudfront.net" }
+
+# OK: CNAMEレコード → 即座に検証通過
+"Type": "CNAME",
+"TTL": 300,
+"ResourceRecords": [{"Value": "dXXXXXX.cloudfront.net"}]
+```
+
+**教訓**: CloudFrontへのルーティングでは通常Aレコード（Alias）が推奨だが、Amplifyのドメイン検証ではCNAMEが必須。
+
 ### Amplify defineFunction: @aws-sdk モジュール解決エラー
 
 **症状**:

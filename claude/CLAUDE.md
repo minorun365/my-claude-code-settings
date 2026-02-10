@@ -26,6 +26,7 @@
 
 ## AWS / Cloud Operations
 - AWS CLIコマンドやスクリプトを実行する前に、必ず `aws sts get-caller-identity --profile <profile>` でSSOセッションがアクティブか確認すること。
+- **CloudWatch Logs の調査には必ず CloudWatch MCP サーバー（`awslabs-cloudwatch-mcp-server`）を使うこと。** `check-agent-logs` サブエージェントは MCP にアクセスできず Bash 経由の AWS CLI に頼るため、手動承認が頻発する。ログ調査をサブエージェントに委任する場合は `app-test-debug-agent` や `general-purpose` など MCP アクセス可能なエージェントを使う。
 
 # Claude Code関連
 - コンテキスト節約のため、調査やデバッグにはサブエージェントを活用してください。
