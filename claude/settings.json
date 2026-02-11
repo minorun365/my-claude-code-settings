@@ -60,7 +60,10 @@
       "Bash(git add *)",
       "Bash(git status*)"
     ],
-    "defaultMode": "default"
+    "defaultMode": "default",
+    "additionalDirectories": [
+      "~/git/minorun365/my-claude-code-settings"
+    ]
   },
   "hooks": {
     "PermissionRequest": [
