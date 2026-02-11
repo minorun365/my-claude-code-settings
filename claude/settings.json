@@ -58,7 +58,8 @@
       "Bash(jq *)",
       "Bash(cd *)",
       "Bash(git add *)",
-      "Bash(git status*)"
+      "Bash(git status*)",
+      "Bash(#!/bin/bash*)"
     ],
     "defaultMode": "default",
     "additionalDirectories": [
