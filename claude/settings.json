@@ -51,7 +51,8 @@
       "mcp__aws-iac-mcp-server__search_cdk_samples_and_constructs",
       "mcp__aws-iac-mcp-server__read_iac_documentation_page",
       "mcp__aws-iac-mcp-server__cdk_best_practices",
-      "mcp__awslabs-cloudwatch-mcp-server__*"
+      "mcp__awslabs-cloudwatch-mcp-server__*",
+      "Bash(python3 -c*)"
     ],
     "defaultMode": "default"
   },
