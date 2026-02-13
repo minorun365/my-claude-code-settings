@@ -87,7 +87,9 @@
       "args": [
         "awslabs.cloudwatch-mcp-server@latest"
       ],
-      "env": {}
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      }
     }
   }
 }
