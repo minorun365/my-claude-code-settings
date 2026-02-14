@@ -188,20 +188,26 @@ elif "current_tool_use" in event:
 
 **ポイント**: ストリーミング中はイベントが複数回発火し、`{"query"` → `{"query": "検索` → `{"query": "検索ワード"}` のように徐々に完成する。完全なJSONになったタイミングでのみパースが成功する。
 
-**⚠️ 重要**: フロントエンドにイベントを転送する場合、**必要なデータが取得できるまでイベントを送信しない**ことが重要。最初の「空のinput」でイベント送信すると、フロントエンドで不完全な状態が表示され、後から来る完全なデータが重複防止ロジックでスキップされる問題が起きる。
+**⚠️ 重要: バックエンドで重複スキップしてはいけない**
+
+`current_tool_use` の重複イベントをバックエンドで `continue` してはいけない。理由：
+- 最初のチャンクの `input` は不完全なJSON文字列（例: `"{\"qu"`）
+- JSONパースが失敗し、`query` 等の必要なパラメータが取得できない
+- 後続チャンク（パラメータが完成したもの）がスキップされ、イベントが一切フロントに送信されなくなる
+
+重複の吸収はフロントエンド側（`hasInProgress` チェック等）で行うのが正しい。
 
 ```python
-# ❌ NG: クエリがなくてもイベント送信 → 空のステータスが先に表示される
-if tool_name == "web_search" and isinstance(tool_input, dict) and "query" in tool_input:
-    yield {"type": "tool_use", "data": tool_name, "query": tool_input["query"]}
-else:
-    yield {"type": "tool_use", "data": tool_name}  # ← これが先に送信される
+# ❌ NG: バックエンドで重複スキップ → 最初のチャンク（input不完全）のみ処理される
+if tool_name == last_tool_name:
+    continue  # 2回目以降のチャンク（inputが完全）がスキップされる！
+last_tool_name = tool_name
 
-# ✅ OK: web_searchはクエリ取得時のみ送信
+# ✅ OK: 重複スキップせず、条件に合うときだけyield（フロント側で重複吸収）
 if tool_name == "web_search":
     if isinstance(tool_input, dict) and "query" in tool_input:
         yield {"type": "tool_use", "data": tool_name, "query": tool_input["query"]}
-    # クエリがない場合は送信しない（完全なJSONを待つ）
+    # queryが不完全なチャンクではyieldしない → 完成したチャンクでyieldされる
 else:
     yield {"type": "tool_use", "data": tool_name}
 ```
