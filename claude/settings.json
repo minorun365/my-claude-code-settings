@@ -40,12 +40,7 @@
       "mcp__github__search_*",
       "mcp__chrome-devtools__*",
       "mcp__playwright__*",
-      "mcp__aws-mcp__aws___read_documentation",
-      "mcp__aws-mcp__aws___search_documentation",
-      "mcp__aws-mcp__aws___get_regional_availability",
-      "mcp__aws-mcp__aws___list_regions",
-      "mcp__aws-mcp__aws___recommend",
-      "mcp__aws-mcp__aws___retrieve_agent_sop",
+      "mcp__aws-knowledge-mcp-server__*",
       "mcp__aws-iac-mcp-server__search_cdk_documentation",
       "mcp__aws-iac-mcp-server__search_cloudformation_documentation",
       "mcp__aws-iac-mcp-server__search_cdk_samples_and_constructs",
@@ -59,7 +54,12 @@
       "Bash(cd *)",
       "Bash(git add *)",
       "Bash(git status*)",
-      "Bash(#!/bin/bash*)"
+      "Bash(#!/bin/bash*)",
+      "Bash(rclone *)",
+      "Bash(rm -rf /tmp/sync-gdocs*)",
+      "Bash(mkdir -p /tmp/sync-gdocs*)",
+      "Bash(cp /tmp/sync-gdocs*)",
+      "Bash(python3 /tmp/sync-gdocs*)"
     ],
     "defaultMode": "default",
     "additionalDirectories": [

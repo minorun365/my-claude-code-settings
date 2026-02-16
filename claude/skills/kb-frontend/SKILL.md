@@ -10,6 +10,51 @@ React/TypeScript/Tailwindを使ったフロントエンド開発の学びを記�
 
 ## Tailwind CSS v4
 
+### 2つの統合方式
+
+Tailwind CSS v4 には2つの統合方式がある。通常は Vite プラグイン方式（推奨）を使うが、dev サーバーで動作しない場合は PostCSS 方式にフォールバックする。
+
+| 方式 | パッケージ | 仕組み | 推奨度 |
+|------|-----------|--------|--------|
+| Vite プラグイン | `@tailwindcss/vite` | Vite の `transform` フックで CSS を処理 | 公式推奨 |
+| PostCSS | `@tailwindcss/postcss` | Vite 組み込みの CSS パイプライン経由 | フォールバック |
+
+**性能差はほぼない**。PostCSS 方式は Vite の内部 `vite:css` プラグイン内で動作するため、transform フック関連の問題を完全に迂回できる。
+
+### Vite プラグイン方式（推奨）
+```typescript
+// vite.config.ts
+import tailwindcss from '@tailwindcss/vite'
+
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+})
+```
+- `postcss.config.js` 不要
+- `@tailwindcss/vite` を devDependencies に追加
+
+### PostCSS 方式（フォールバック）
+```javascript
+// postcss.config.js
+export default {
+  plugins: {
+    '@tailwindcss/postcss': {},
+  },
+}
+```
+```typescript
+// vite.config.ts - tailwindcss プラグインは不要
+export default defineConfig({
+  plugins: [react()],
+})
+```
+- `@tailwindcss/postcss` を devDependencies に追加
+- `vite.config.ts` から `@tailwindcss/vite` を削除
+
+### 動作確認方法
+
+ブラウザで CSS を確認し、先頭に `/*! tailwindcss v4.x.x | MIT License */` が表示されていれば正常。`@layer theme, base, components, utilities;` で始まっている場合は Tailwind のプラグインが CSS を処理できていない。
+
 ### Vite統合（ゼロコンフィグ）
 ```typescript
 // vite.config.ts

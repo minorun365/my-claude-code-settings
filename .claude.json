@@ -50,17 +50,6 @@
         "FASTMCP_LOG_LEVEL": "ERROR"
       }
     },
-    "aws-mcp": {
-      "type": "stdio",
-      "command": "uvx",
-      "args": [
-        "mcp-proxy-for-aws@latest",
-        "https://aws-mcp.us-east-1.api.aws/mcp",
-        "--metadata",
-        "AWS_REGION=us-east-1"
-      ],
-      "env": {}
-    },
     "aws-iac-mcp-server": {
       "type": "stdio",
       "command": "uvx",
@@ -87,9 +76,11 @@
       "args": [
         "awslabs.cloudwatch-mcp-server@latest"
       ],
-      "env": {
-        "FASTMCP_LOG_LEVEL": "ERROR"
-      }
+      "env": {}
+    },
+    "aws-knowledge-mcp-server": {
+      "type": "http",
+      "url": "https://knowledge-mcp.global.api.aws"
     }
   }
 }

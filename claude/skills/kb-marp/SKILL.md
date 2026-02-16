@@ -82,25 +82,27 @@ Marpの`class: invert`とTailwindの`.invert`ユーティリティが競合す�
 #### 箇条書き（リストスタイル）の競合
 Tailwind CSS v4のPreflight（CSSリセット）が`list-style: none`を適用するため、Marpスライド内の箇条書きビュレット（●○■）が消える。
 
+**注意**: `list-style`（ショートハンド）ではなく `list-style-type`（個別プロパティ）を使うこと。ショートハンドだと `list-style-position` も暗黙的にリセットされ、テーマ側の設定が上書きされる。
+
 ```css
 /* src/index.css に追加 */
 .marpit ul {
-  list-style: disc !important;
+  list-style-type: disc !important;
 }
 
 .marpit ol {
-  list-style: decimal !important;
+  list-style-type: decimal !important;
 }
 
 /* ネストされたリストのスタイル */
 .marpit ul ul,
 .marpit ol ul {
-  list-style: circle !important;
+  list-style-type: circle !important;
 }
 
 .marpit ul ul ul,
 .marpit ol ul ul {
-  list-style: square !important;
+  list-style-type: square !important;
 }
 ```
 
@@ -151,6 +153,36 @@ Marpコミュニティテーマ（例: border）を使う場合:
 4. `marp.themeSet.add()` で登録
 
 **参考**: https://rnd195.github.io/marp-community-themes/
+
+### テーマ統一ディレクティブ（テーマ切り替え互換性）
+
+複数テーマ間で切り替え可能にするため、全テーマで統一されたCSSクラスベースのディレクティブを使う。デザイン差はCSSのみで吸収する。
+
+| 用途 | ディレクティブ |
+|------|-------------|
+| タイトルスライド | `<!-- _class: lead --><!-- _paginate: skip -->` |
+| セクション区切り | `<!-- _class: lead -->` |
+| 参考文献スライド | `<!-- _class: tinytext -->` |
+
+**NG**: テーマ固有のインラインスタイル（`<!-- _backgroundColor: #303030 --><!-- _color: white -->`）はテーマ切り替え時に崩れる。
+
+**フロントエンドの正規化**: 旧スタイルの既存スライドは `SlidePreview.tsx` の `useMemo` 内で自動的に統一クラスに変換する。
+
+### Gaiaベーステーマの注意（Speee等）
+
+`@import "default"` を使わないGaiaベースのテーマは、リスト余白やビュレット位置のデフォルトスタイルが欠落する。以下を明示的に設定する：
+
+```css
+ul, ol {
+  padding-left: 0;
+  list-style-position: inside;  /* ビュレットをテキスト開始位置に揃える */
+  margin-top: 0.6em;            /* 見出し・テキストとの余白 */
+}
+ul ul, ul ol, ol ul, ol ol {
+  padding-left: 1.5em;
+  margin-top: 0;
+}
+```
 
 ### フロントエンドとバックエンドの両方に配置
 
@@ -284,6 +316,56 @@ def generate_pptx(markdown: str) -> bytes:
     theme_path = Path(__file__).parent / f"{THEME_NAME}.css"  # 同じ方式に統一
     ...
 ```
+
+### カスタムテーマ: `position: absolute` が効かない（defaultテーマとの競合）
+
+**症状**: カスタムテーマで `section.top p { position: absolute; bottom: 0; left: 0; width: 100%; }` を設定しても、p要素が意図した位置に配置されない（右に寄る等）
+
+**原因**: `@import 'default'` で読み込まれるMarpデフォルトテーマのスタイルが、カスタムテーマのスタイルと競合して上書きされる
+
+**解決策**: 位置・レイアウト系プロパティに `!important` を追加して確実に適用
+
+```css
+section.top p {
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 33% !important;
+  display: flex !important;
+  flex-direction: column;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 0 !important;
+  text-align: center;
+  box-sizing: border-box;
+  z-index: 1;
+}
+```
+
+**教訓**: `@import 'default'` を使うカスタムテーマでは、レイアウト系プロパティ（position, display, margin等）に `!important` を付けないとデフォルトテーマに負ける場合がある
+
+### カスタムテーマ: 複数の `<p>` 要素が重なる
+
+**症状**: タイトルスライドで所属と名前を空行で分けて書くと、2つのp要素が同じ位置に重なって表示される
+
+**原因**: Markdownで空行を挟むと別々の `<p>` 要素になる。`position: absolute` で同じ座標に配置されるため重なる
+
+```markdown
+<!-- NG: 2つの<p>要素が生成される -->
+KDDIアジャイル開発センター株式会社
+
+テックエバンジェリスト　みのるん
+```
+
+**解決策**: `<br>` で結合して1つの `<p>` 要素にまとめる
+
+```markdown
+<!-- OK: 1つの<p>要素 -->
+KDDIアジャイル開発センター株式会社<br>テックエバンジェリスト　みのるん
+```
+
+**補足**: CSSの `flex-direction: column` を併用すると、`<br>` による改行が自然に縦に並ぶ
 
 ### テーマ確認（デバッグ）
 

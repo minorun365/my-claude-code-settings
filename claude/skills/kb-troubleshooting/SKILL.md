@@ -25,6 +25,21 @@ const idToken = session.tokens?.idToken?.toString();
 const accessToken = session.tokens?.accessToken?.toString();
 ```
 
+### AgentCore JWT: DiscoveryUrl バリデーションエラー
+
+**症状**: `Properties validation failed for resource ... DiscoveryUrl: string [...] does not match pattern ^.+/\.well-known/openid-configuration$`
+
+**原因**: `usingJWT` の `discoveryUrl` に issuer URL のみを渡していた（末尾の `/.well-known/openid-configuration` が欠落）
+
+**解決策**: フルパスで指定する
+```typescript
+// NG
+`https://cognito-idp.${region}.amazonaws.com/${userPoolId}`
+
+// OK
+`https://cognito-idp.${region}.amazonaws.com/${userPoolId}/.well-known/openid-configuration`
+```
+
 ### Bedrock Model Detector: 重複通知メール
 
 **症状**: 新モデルリリース時に同じモデルの通知メールが複数回届く
@@ -73,6 +88,27 @@ const fn = new lambda.Function(this, 'MyFunction', {
 ```
 
 **教訓**: pydantic_core等のCコンパイル済みバイナリはアーキテクチャ不一致で即座にエラーになる。x86_64でビルドしたバイナリはARM64 Lambdaで動かない。
+
+### AgentCore Identity: workload-identity ARN 不一致
+
+**症状**: `@requires_access_token` で `GetResourceOauth2Token` の権限エラー。IAMポリシーには `GetResourceOauth2Token` が設定済み
+
+**原因**: `agentcore deploy` で `.agentcore.json` がパッケージに含まれると、ローカルで自動生成された workload identity ID（例: `workload-383171e1`）が使われる。IAMポリシーのリソースARNが `workload-identity/sample_identity-*` のようなパターンだと不一致
+
+**解決策**: IAMポリシーの workload-identity リソースをワイルドカードに拡張
+```json
+{
+  "Sid": "BedrockAgentCoreIdentityGetResourceOauth2Token",
+  "Effect": "Allow",
+  "Action": ["bedrock-agentcore:GetResourceOauth2Token"],
+  "Resource": [
+    "arn:aws:bedrock-agentcore:REGION:ACCOUNT:token-vault/default",
+    "arn:aws:bedrock-agentcore:REGION:ACCOUNT:token-vault/default/oauth2credentialprovider/*",
+    "arn:aws:bedrock-agentcore:REGION:ACCOUNT:workload-identity-directory/default",
+    "arn:aws:bedrock-agentcore:REGION:ACCOUNT:workload-identity-directory/default/workload-identity/*"
+  ]
+}
+```
 
 ### Bedrock: AccessDeniedException on inference-profile
 
@@ -279,6 +315,48 @@ def current_time() -> str:
 **教訓**: LLM に計算させず、ツール側で確定した情報を返す。タイムゾーン変換もシステムプロンプト指示ではなくツール側で完結させる。
 
 ## フロントエンド関連
+
+### Tailwind CSS v4: dev サーバーでユーティリティクラスが生成されない
+
+**症状**: `npx vite` の dev サーバーで Tailwind のユーティリティクラス（`text-white`, `font-bold` 等）が一切生成されない。ビルド（`npx vite build`）では正常に動作する
+
+**診断方法**: ブラウザの DevTools で CSS を確認
+- 正常: 先頭が `/*! tailwindcss v4.x.x | MIT License */`、ユーティリティクラスが含まれる
+- 異常: 先頭が `@layer theme, base, components, utilities;`、`@tailwind utilities` が未展開のまま残る
+
+**原因**: `@tailwindcss/vite` プラグインの `transform` ハンドラー（`@tailwindcss/vite:generate:serve`）が Vite 7 の dev サーバーモードで呼ばれない場合がある。プラグインは正しく登録されるが、CSS ファイルに対して transform フックが実行されない。正確な発生条件は不明（同じバージョンの別プロジェクトでは正常に動作する）
+
+**解決策**: `@tailwindcss/postcss`（PostCSS 方式）に切り替える
+
+```javascript
+// postcss.config.js（新規作成）
+export default {
+  plugins: {
+    '@tailwindcss/postcss': {},
+  },
+}
+```
+
+```typescript
+// vite.config.ts から @tailwindcss/vite を削除
+export default defineConfig({
+  plugins: [react()],  // tailwindcss() を削除
+})
+```
+
+```bash
+npm install -D @tailwindcss/postcss
+```
+
+**なぜ PostCSS で解決するか**: PostCSS は Vite 組み込みの CSS 処理パイプライン（`vite:css` プラグイン）内で動作するため、プラグインの transform フック問題を完全に迂回できる。性能差もほぼない。
+
+**効果がなかった対策**:
+- node_modules クリーンインストール
+- Vite キャッシュ削除（`rm -rf node_modules/.vite`）
+- git init + コミット（Tailwind v4 の自動コンテンツ検出用）
+- `@source "../src"` 追加（明示的スキャンパス指定）
+- vite.config.ts を正常プロジェクトと完全同一にする
+- node_modules 内のプラグインから transform.filter を削除
 
 ### OGP/Twitterカード: 画像が表示されない
 
@@ -614,6 +692,32 @@ const dataBucket = new s3.Bucket(stack, 'DataBucket', {
 - ピリオド（`.`）※ドメイン形式の場合
 
 **使用不可**: アンダースコア（`_`）、大文字、スペース、その他の記号
+
+### CSSショートハンド: list-style が list-style-position を上書きする
+
+**症状**: テーマCSSで `list-style-position: inside` を指定しても効かない。computed style では `outside` のまま
+
+**原因**: グローバルCSS（Tailwindリセット対策等）で `list-style: disc !important` を指定していた。`list-style` はショートハンドプロパティで、`list-style-type`、`list-style-position`、`list-style-image` を一括設定する。未指定のサブプロパティは `initial` にリセットされるため、`list-style-position` が暗黙的に `outside`（= initial）に `!important` 付きで上書きされていた
+
+**解決策**: ショートハンドではなく個別プロパティで指定する
+
+```css
+/* NG: ショートハンドが list-style-position も上書きする */
+.marpit ul { list-style: disc !important; }
+
+/* OK: type のみ指定（position を上書きしない） */
+.marpit ul { list-style-type: disc !important; }
+```
+
+**同様の落とし穴があるショートハンド**:
+| ショートハンド | リセットされるサブプロパティ |
+|-------------|------------------------|
+| `list-style` | `list-style-type`, `list-style-position`, `list-style-image` |
+| `background` | `background-image`, `background-position`, `background-size` 等 |
+| `font` | `font-size`, `font-weight`, `line-height` 等 |
+| `border` | `border-width`, `border-style`, `border-color` |
+
+**教訓**: `!important` 付きのCSSルールでは特にショートハンドに注意。意図しないサブプロパティのリセットがテーマ固有のスタイルを壊す
 
 ### Tailwind: レスポンシブクラス変更がPC表示に反映されない
 

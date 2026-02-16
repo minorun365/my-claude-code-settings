@@ -52,5 +52,6 @@
 | `/kb-line` | LINE Bot開発（Messaging API、Webhook、署名検証、Push Message、グループチャット対応） |
 | `/kb-aws-diagrams` | AWS Diagram MCP Server（アーキテクチャ図、カスタムアイコン、レイアウト調整） |
 | `/kb-troubleshooting` | トラブルシューティング集（AWS、フロントエンド、Python、LLMアプリ）|
+| `/sync-gdocs` | Google Docs 原稿を rclone + AI整形で authoring/ に同期 |
 
 プロジェクト固有でない汎用的な学びを得たら `/sync-knowledge` で追記する。

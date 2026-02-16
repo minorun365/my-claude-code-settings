@@ -559,6 +559,22 @@ const runtime = new agentcore.Runtime(stack, 'MyRuntime', {
 
 ### JWT認証（Cognito統合）
 
+#### DiscoveryUrl には `/.well-known/openid-configuration` が必須
+
+AgentCore の `usingJWT` に渡す `discoveryUrl` は、末尾に `/.well-known/openid-configuration` を含める必要がある。issuer URL のみ（例: `https://cognito-idp.us-east-1.amazonaws.com/{userPoolId}`）を渡すとバリデーションエラーになる。
+
+```typescript
+// ❌ NG: issuer URL のみ → CFn バリデーションエラー
+const discoveryUrl = `https://cognito-idp.${region}.amazonaws.com/${userPoolId}`;
+
+// ✅ OK: フルパス
+const discoveryUrl = `https://cognito-idp.${region}.amazonaws.com/${userPoolId}/.well-known/openid-configuration`;
+```
+
+**エラーメッセージ**: `DiscoveryUrl: string [...] does not match pattern ^.+/\.well-known/openid-configuration$`
+
+#### allowedClients は client_id クレームを検証
+
 AgentCore RuntimeのJWT認証（`usingJWT`の`allowedClients`）は **`client_id`クレーム** を検証する。
 
 | トークン種別 | クライアントIDの格納先 | AgentCore認証 |
@@ -1010,6 +1026,75 @@ def current_time() -> str:
 - タイムゾーン変換もツール側で完結させる（システムプロンプトの「+9時間して」は不確実）
 - `Python の weekday()` は月曜=0 なので日本語曜日配列のインデックスと一致する
 - `strands_tools.current_time` の代わりにカスタムツールを使う
+
+---
+
+## AgentCore Identity（アウトバウンド認証）
+
+### `@requires_access_token` と `@tool` は必ず分離する
+
+`@tool` と `@requires_access_token` を同じ関数にスタックすると、パラメータ解析が干渉してツールが正しく動作しない（エージェントが `access_token` を入力パラメータとして要求してしまう）。
+
+```python
+# ❌ NG: デコレータをスタック → パラメータ干渉
+@tool
+@requires_access_token(provider_name="my-provider", scopes=[...], auth_flow="USER_FEDERATION")
+async def get_pages(*, access_token: str):
+    ...
+
+# ✅ OK: トークン取得とツールを分離
+@requires_access_token(provider_name="my-provider", scopes=[...], auth_flow="USER_FEDERATION",
+    on_auth_url=lambda url: print(f"認可URL: {url}"),
+    callback_url="https://bedrock-agentcore.REGION.amazonaws.com/identities/oauth2/callback/...")
+def get_token(access_token: str = ""):
+    return access_token
+
+@tool
+def get_pages():
+    """外部APIのページ一覧を取得する"""
+    token = get_token()
+    response = httpx.get("https://api.example.com/pages",
+        headers={"Authorization": f"Bearer {token}"})
+    return response.json()
+```
+
+### USER_FEDERATION は同期関数でも動作する
+
+`auth_flow="USER_FEDERATION"` でも `def`（同期関数）で定義可能。SDK 内部でポーリングをブロッキング実行する。`async def` + `asyncio.run_until_complete()` は BedrockAgentCoreApp の async コンテキストと競合するため避ける。
+
+### M2M (client_credentials) フローの互換性問題
+
+AgentCore Identity の M2M フローは標準 `grant_type=client_credentials` を使用するが、多くの外部プロバイダーが独自仕様を持つため互換性に注意：
+
+| プロバイダー | M2M結果 | 原因 |
+|-------------|--------|------|
+| Zoom | ❌ トークン取得成功、API拒否 | `grant_type=account_credentials` + `account_id` が必要 |
+| GitHub | ❌ トークン取得失敗 | Token endpoint レスポンス形式が非標準 |
+| Atlassian | △ サイトアクセス権なし | サービスアカウント設定が別途必要 |
+
+**結論**: M2M は実務上イレギュラー。3LO (USER_FEDERATION) が主流パターン。
+
+### BedrockAgentCoreApp の初期化タイムアウト
+
+AgentCore Runtime は初期化を30秒以内に完了する必要がある。モジュールレベルで `agent(...)` を実行すると、3LO のポーリングで初期化がブロックされタイムアウトする。
+
+```python
+# ❌ NG: モジュールレベルで実行 → 30秒タイムアウト
+agent = Agent(tools=[my_tool])
+agent("処理を実行して")
+
+# ✅ OK: BedrockAgentCoreApp + @app.entrypoint で invoke 時に実行
+app = BedrockAgentCoreApp()
+
+@app.entrypoint
+def handle_request(request, context=None):
+    agent = Agent(tools=[my_tool])
+    result = agent(request.get("prompt", ""))
+    return {"response": str(result)}
+
+if __name__ == "__main__":
+    app.run()
+```
 
 ---
 

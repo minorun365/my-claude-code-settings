@@ -88,6 +88,32 @@ npx ampx sandbox
 - `amplify_outputs.json` が自動生成される
 - CloudFormationスタック名: `amplify-{appName}-{identifier}-sandbox-{hash}`
 
+### 環境変数の注意点
+
+`npx ampx sandbox` は `.env` ファイルを自動読み込みしない。CDKコード内で `process.env.XXX` を参照する環境変数は、sandbox起動前にシェルへ読み込む必要がある。
+
+```bash
+# NG: .envの値が渡らず空文字になる
+npx ampx sandbox
+
+# OK: .envを読み込んでから起動
+export $(grep -v '^#' .env | grep -v '^$' | xargs) && npx ampx sandbox
+```
+
+**典型的な症状**: APIキー等を `process.env` 経由でランタイム環境変数に渡している場合、sandboxでは空文字がセットされ、実行時にAPIエラーになる。
+
+### デプロイ完了の確認
+
+sandbox起動後はバックグラウンド実行してログをこまめにポーリングし、以下のメッセージが出るまで待つ：
+
+```
+✔ Deployment completed in XXX seconds
+[Sandbox] Watching for file changes...
+File written: amplify_outputs.json
+```
+
+ファイル変更によるHotswapデプロイ時も同様に完了を確認すること。
+
 ### Dockerビルド（AgentCore等）
 - sandbox環境では `fromAsset()` でローカルビルド可能
 - Mac ARM64でビルドできるなら `deploy-time-build` は不要
