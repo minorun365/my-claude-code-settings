@@ -695,6 +695,86 @@ aws amplify get-domain-association \
 
 ---
 
+## AgentCore WebSocket 認証（ブラウザ接続）
+
+### JWT 認証は WebSocket に使えない
+
+`RuntimeAuthorizerConfiguration.usingJWT()` で設定した JWT 認証は HTTP invocations 専用。ブラウザの WebSocket API はカスタムヘッダーを設定できないため、Bearer トークンを渡せない。
+
+**解決策**: JWT 認証を削除し、**IAM (SigV4) 認証** + Cognito Identity Pool に変更。
+
+### WebSocket 接続先 URL
+
+```
+wss://bedrock-agentcore.{region}.amazonaws.com/runtimes/{runtimeArn}/ws?qualifier=DEFAULT
+```
+
+- ARN は**エンコードしない**（公式サンプル準拠）
+- `qualifier=DEFAULT` は**必須**
+
+### IAM 権限設定
+
+Cognito 認証済みロールに WebSocket 用の権限を付与：
+
+```typescript
+import * as iam from 'aws-cdk-lib/aws-iam';
+
+// Cognito Identity Pool の認証済みロールに付与
+const authenticatedRole = backend.auth.resources.authenticatedUserIamRole;
+
+authenticatedRole.addToPrincipalPolicy(new iam.PolicyStatement({
+  actions: ['bedrock-agentcore:InvokeAgentRuntimeWithWebSocketStream'],
+  resources: [
+    runtime.agentRuntimeArn,        // Runtime ARN 本体
+    `${runtime.agentRuntimeArn}/*`, // サブリソース
+  ],
+}));
+```
+
+**注意点**:
+- アクション名は `bedrock-agentcore:InvokeAgentRuntimeWithWebSocketStream`（`bedrock-agentcore:*` では不十分な場合あり）
+- リソースは Runtime ARN そのもの + ワイルドカード（`/runtime-endpoint/DEFAULT` 等のサブリソースもカバー）
+
+### amplify_outputs.json の custom フィールド
+
+`Amplify.getConfig()` は `custom` フィールドを返さない。カスタム出力（Runtime ARN、リージョン等）にアクセスするには `amplify_outputs.json` を直接 import する。
+
+```typescript
+// NG: custom が取れない
+const config = Amplify.getConfig();
+const arn = config.custom?.runtimeArn; // undefined
+
+// OK: 直接 import
+import outputs from '../amplify_outputs.json';
+const arn = outputs.custom?.runtimeArn;
+```
+
+### SigV4 事前署名 URL の生成（ブラウザ側）
+
+```typescript
+import { SignatureV4 } from '@smithy/signature-v4';
+import { HttpRequest } from '@smithy/protocol-http';
+import { Sha256 } from '@aws-crypto/sha256-js';
+
+const signer = new SignatureV4({
+  service: 'bedrock-agentcore', region,
+  credentials, // Cognito Identity Pool の IAM 認証情報
+  sha256: Sha256,
+});
+
+const request = new HttpRequest({
+  method: 'GET', protocol: 'https:',
+  hostname: `bedrock-agentcore.${region}.amazonaws.com`,
+  path: `/runtimes/${runtimeArn}/ws`,
+  query: { qualifier: 'DEFAULT' },
+  headers: { host: `bedrock-agentcore.${region}.amazonaws.com` },
+});
+
+const presigned = await signer.presign(request, { expiresIn: 300 });
+```
+
+---
+
 ## よくあるエラー
 
 ### amplify_outputs.json が見つからない

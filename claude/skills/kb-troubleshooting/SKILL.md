@@ -110,6 +110,34 @@ const fn = new lambda.Function(this, 'MyFunction', {
 }
 ```
 
+### AgentCore Identity 3LO: callback で authorizationCode/state が null エラー
+
+**症状**: 3LO (USER_FEDERATION) フローで、ブラウザの Atlassian 同意後に callback endpoint でバリデーションエラー
+```
+{"message":"2 validation errors detected: Value at 'authorizationCode' failed to satisfy constraint: Member must not be null; Value at 'state' failed to satisfy constraint: Member must not be null"}
+```
+
+**原因**: `callback_url` に AgentCore の callback endpoint（`https://bedrock-agentcore.REGION.amazonaws.com/identities/oauth2/callback/UUID`）を直接指定していた。3LO フローは2段階で動作し、AgentCore callback → アプリの callback サーバーへのリダイレクトが必要。AgentCore endpoint を callback_url に指定すると、自分自身にリダイレクトして `session_id` のみのリクエストを受け取り、code/state が null になる。
+
+**解決策**: アプリ側でローカル callback サーバーを立て、`callback_url` をそちらに向ける
+
+```python
+# callback_url を localhost に変更
+callback_url="http://localhost:9090/oauth2/callback"
+
+# ローカル callback サーバーで CompleteResourceTokenAuth を呼ぶ
+identity_client.complete_resource_token_auth(
+    session_uri=session_id,
+    user_identifier=UserIdIdentifier(user_id="<user_id>"),
+)
+```
+
+**追加設定**:
+- Workload Identity の `allowedResourceOauth2ReturnUrls` に localhost URL を追加
+- `fastapi` + `uvicorn` を依存関係に追加
+
+**参考**: GitHub Issue #801、公式サンプル `05-Outbound_Auth_3lo/oauth2_callback_server.py`
+
 ### Bedrock: AccessDeniedException on inference-profile
 
 **症状**: `AccessDeniedException: bedrock:InvokeModelWithResponseStream on resource: arn:aws:bedrock:*:*:inference-profile/*`
@@ -123,6 +151,47 @@ resources: [
   'arn:aws:bedrock:*:*:inference-profile/*',  // 追加
 ]
 ```
+
+### AgentCore Gateway Policy: ENFORCE モードが AWS_IAM で Internal Failure
+
+**症状**: `authorizerType: AWS_IAM` のゲートウェイに Policy Engine を ENFORCE モードで関連付けると、`tools/list` / `tools/call` が以下のエラーで失敗する：
+```
+Tool Execution Denied: Policy Evaluation Internal Failure
+```
+LOG_ONLY モードでは正常にツール呼び出しが通過する。
+
+**原因**: **Policy Engine の ENFORCE は `CUSTOM_JWT`（OAuth/Cognito）認証専用**。Cedar スキーマの Principal Type が `AgentCore::OAuthUser` 固定であり、JWT の `sub` クレームから principal を構築する設計。`AWS_IAM` 認証では principal エンティティを構築できず Internal Failure になる。
+
+根拠：
+- Cedar スキーマ制約: https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy-schema-constraints.html
+- Authorization flow（JWT `sub` 由来）: https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy-authorization-flow.html
+- 公式の Gateway + Policy 作成例が `CUSTOM_JWT` のみ: https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/create-gateway-with-policy.html
+- AWS 公式サンプル4リポジトリで `AWS_IAM` + Policy Engine の例がゼロ
+
+**解決策**: Policy Engine（特に ENFORCE モード）を使うには `CUSTOM_JWT` 認証のゲートウェイが必要
+
+```python
+# NG: AWS_IAM + ENFORCE → Internal Failure
+agentcore.create_gateway(
+    name="my-gateway",
+    authorizerType="AWS_IAM",
+    policyEngineConfiguration={"enforcementMode": "ENFORCE", ...},
+)
+
+# OK: CUSTOM_JWT + ENFORCE → 動作する
+agentcore.create_gateway(
+    name="my-gateway",
+    authorizerType="CUSTOM_JWT",
+    authorizerConfiguration={"usingJWT": {"discoveryUrl": "https://cognito-idp.../.well-known/openid-configuration", ...}},
+    policyEngineConfiguration={"enforcementMode": "ENFORCE", ...},
+)
+```
+
+**補足**:
+- `authorizerType` は既存ゲートウェイでは変更不可（`update_gateway` で `ValidationException`）。新規作成が必要
+- LOG_ONLY が「動く」のは評価成功ではなく、評価失敗を飲み込んで通しているだけの可能性が高い
+- Cedar ポリシーで `principal.hasTag("department")` 等を使う場合、JWT トークンにカスタムクレームが必要（Cognito 標準クレームだけでは不足）
+- `amount` のスキーマ型 `number` は Cedar では Decimal にマッピングされる。`< 500` は Long 型のみ対応、Decimal は `.lessThan(decimal("500.0"))` を使う
 
 ### AgentCore Observability: トレースが出力されない
 
@@ -314,7 +383,134 @@ def current_time() -> str:
 
 **教訓**: LLM に計算させず、ツール側で確定した情報を返す。タイムゾーン変換もシステムプロンプト指示ではなくツール側で完結させる。
 
+### AgentCore WebSocket: JWT 認証が使えない
+
+**症状**: ブラウザから AgentCore の WebSocket エンドポイントに接続できない（認証エラー）
+
+**原因**: `RuntimeAuthorizerConfiguration.usingJWT()` で設定した JWT 認証は HTTP invocations 用。ブラウザの WebSocket API はカスタムヘッダー（`Authorization: Bearer ...`）を設定できないため、JWT トークンを渡せない
+
+**解決策**: JWT 認証を削除し、IAM (SigV4) 事前署名 URL + Cognito Identity Pool に変更
+
+```typescript
+// CDK: JWT認証を削除し、Identity Pool の認証済みロールに権限付与
+authenticatedRole.addToPrincipalPolicy(new iam.PolicyStatement({
+  actions: ['bedrock-agentcore:InvokeAgentRuntimeWithWebSocketStream'],
+  resources: [runtime.agentRuntimeArn, `${runtime.agentRuntimeArn}/*`],
+}));
+```
+
+```typescript
+// ブラウザ: SigV4 presigned URL で WebSocket 接続
+const signer = new SignatureV4({
+  service: 'bedrock-agentcore', region, credentials, sha256: Sha256,
+});
+const presigned = await signer.presign(request, { expiresIn: 300 });
+const ws = new WebSocket(`wss://...?${queryString}`);
+```
+
+### BidiNovaSonicModel: 音声が早送り/遅再生になる
+
+**症状**: Nova Sonic の音声出力が早送り（1.5倍速）のように聞こえる
+
+**原因**: `provider_config["audio"]` のキー名が間違っている。SDK は `input_rate` / `output_rate` を期待するが、`input_sample_rate` / `output_sample_rate` と書くと**無視され、デフォルトの 16kHz** が使われる。フロントエンドが 24kHz で再生すると 1.5 倍速になる
+
+**解決策**: 正しいキー名を使う
+
+```python
+# ❌ NG: SDK が認識しないキー名（デフォルト 16kHz が使われる）
+provider_config={
+    "audio": {
+        "input_sample_rate": 16000,
+        "output_sample_rate": 24000,
+    },
+}
+
+# ✅ OK: SDK が認識するキー名
+provider_config={
+    "audio": {
+        "input_rate": 16000,
+        "output_rate": 24000,
+    },
+}
+```
+
+**フロントエンド側**: `AudioBuffer` の `sampleRate` を `output_rate` と一致させる
+```typescript
+const SOURCE_SAMPLE_RATE = 24000; // backend の output_rate と一致
+const audioBuffer = ctx.createBuffer(1, int16Data.length, SOURCE_SAMPLE_RATE);
+```
+
+**教訓**: Strands SDK の `_resolve_provider_config` は dict merge するだけなので、未知のキーはエラーにならず静かに無視される。音声速度がおかしい場合はまずキー名を確認する
+
+### Dockerfile: PyAudio ビルド失敗（strands-agents[bidi]）
+
+**症状**: Docker ビルド時に `strands-agents[bidi]` のインストールで PyAudio のビルドが失敗する
+
+**原因**: Python slim イメージには C コンパイラと PortAudio ライブラリがない。`[bidi]` extra が PyAudio を依存に含む
+
+**解決策**: `portaudio19-dev` + `build-essential` を追加
+
+```dockerfile
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    portaudio19-dev build-essential \
+    && rm -rf /var/lib/apt/lists/*
+```
+
+**補足**: コンテナ内で WebSocket I/O を使う場合は PyAudio 自体は不要だが、`[bidi]` extra の依存として必要。
+
 ## フロントエンド関連
+
+### Web Audio API: AudioContext({ sampleRate: 16000 }) が macOS で不安定
+
+**症状**: `new AudioContext({ sampleRate: 16000 })` で作成した AudioContext で音声再生が不安定（ノイズ、途切れ、無音）
+
+**原因**: macOS のオーディオハードウェアは通常 48kHz で動作する。16kHz を強制するとドライバレベルで不安定になる
+
+**解決策**: AudioContext はネイティブサンプルレートで作成し、`createBuffer(1, length, 16000)` でソースの sampleRate を指定する
+
+```typescript
+// NG: sampleRate を 16kHz に強制
+const ctx = new AudioContext({ sampleRate: 16000 });
+
+// OK: ネイティブサンプルレート + AudioBuffer で 16kHz を指定
+const ctx = new AudioContext(); // ネイティブ（通常 48kHz）
+const buffer = ctx.createBuffer(1, data.length, 16000); // 16kHz として解釈
+// Web Audio API が自動でリサンプリング（16kHz → 48kHz）
+```
+
+### Web Audio API: ブラウザで音が出ない（自動再生ポリシー）
+
+**症状**: AudioBufferSourceNode で音声を再生しようとしても無音
+
+**原因**: ブラウザの自動再生ポリシーにより、ユーザーインタラクションなしでは AudioContext が `suspended` 状態になる
+
+**解決策**: ユーザーのボタンクリック等のタイミングで `AudioContext.resume()` を呼ぶ
+
+```typescript
+// ボタンクリックハンドラ内
+const handleStartCall = async () => {
+  await audioContext.resume(); // 必須！これがないと音が出ない
+  // ... WebSocket接続等
+};
+```
+
+### Nova Sonic トランスクリプト: 吹き出しが重複表示
+
+**症状**: アシスタントの応答が吹き出しで2回表示される
+
+**原因**: `isFinal=false` のときだけ直前エントリを上書きしていたため、`isFinal=true` が来ると新しいエントリとして追加され、同じ応答が2つ表示された
+
+**解決策**: `isFinal` の値に関わらず、直前エントリが同じロールで `isFinal=false` なら上書き
+
+```typescript
+setTranscripts(prev => {
+  const last = prev[prev.length - 1];
+  if (last && last.role === role && !last.isFinal) {
+    return [...prev.slice(0, -1), { role, text, isFinal }];
+  }
+  return [...prev, { role, text, isFinal }];
+});
+```
 
 ### Tailwind CSS v4: dev サーバーでユーティリティクラスが生成されない
 
@@ -882,6 +1078,59 @@ aws bedrock-agentcore stop-runtime-session \
 ```
 
 **教訓**: AgentCoreのコード・環境変数を変更した場合は、必ず対象セッションを停止してからテストする。デプロイ完了 ≠ 既存コンテナへの反映。
+
+### SSEエクスポート: 大きいファイルのダウンロードが失敗する（PPTX/PDF）
+
+**症状**: スライドのPPTXダウンロードで「PPTX生成に失敗しました」エラー。URL共有（HTML生成）は成功する
+
+**ブラウザコンソール**:
+```
+Download error: Error: PPTX生成に失敗しました
+```
+
+**原因**: SSEコネクションのアイドルタイムアウト。バックエンドでMarp CLI（Chromium）がPPTX変換中（数十秒〜120秒）、SSEストリームにデータが一切流れない。不安定なネットワーク（会場Wi-Fi等）ではこのアイドル期間にTCPコネクションがドロップし、`reader.read()` が `done: true` を返す。結果として `resultBlob` が null のまま関数が終了する
+
+**CloudWatch Logsの落とし穴**: エクスポート処理に `print()` がないとログが0件になり、「リクエストが到達していない」と誤診しやすい
+
+**解決策**: 3層の対策
+1. **バックエンドにSSE keep-alive**（最も効果的）: 同期的なファイル変換処理を `asyncio.run_in_executor` でスレッド実行し、5秒ごとに `{"type": "progress"}` イベントをyield
+2. **フロントエンドにリトライ**: 失敗時に1秒待って自動再試行（計2回）
+3. **バックエンドにログ追加**: エクスポート処理の開始・完了・失敗を `print()` で記録
+
+```python
+# バックエンド: keep-aliveヘルパー
+async def _wait_with_keepalive(task, format_name):
+    while not task.done():
+        try:
+            await asyncio.wait_for(asyncio.shield(task), timeout=5.0)
+        except asyncio.TimeoutError:
+            yield {"type": "progress", "message": f"{format_name}変換中..."}
+
+# 使い方
+loop = asyncio.get_event_loop()
+task = loop.run_in_executor(None, generate_pptx, markdown, theme)
+async for event in _wait_with_keepalive(task, "PPTX"):
+    yield event  # SSEでkeep-aliveを送信
+result = task.result()
+```
+
+```typescript
+// フロントエンド: リトライ
+for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+  try {
+    return await _exportSlideOnce(markdown, format, theme);
+  } catch (e) {
+    if (attempt < MAX_RETRIES) {
+      await new Promise(r => setTimeout(r, 1000));
+    }
+  }
+}
+```
+
+**教訓**:
+- SSEで長時間処理を返す場合、処理中もkeep-aliveイベントを送信してコネクションを維持する
+- `share_slide`（HTML生成=軽い）が成功して`export_pptx`（PPTX変換=重い）が失敗する場合、処理時間の差がアイドルタイムアウトの原因
+- バックエンドの全アクションに `print()` ログを入れておかないと、CloudWatch Logsで問題の切り分けができない
 
 ## デバッグTips
 
