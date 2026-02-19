@@ -81,6 +81,15 @@
     "aws-knowledge-mcp-server": {
       "type": "http",
       "url": "https://knowledge-mcp.global.api.aws"
+    },
+    "drawio": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@drawio/mcp@latest"
+      ],
+      "env": {}
     }
   }
 }

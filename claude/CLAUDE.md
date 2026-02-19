@@ -28,6 +28,28 @@
 - AWS CLIコマンドやスクリプトを実行する前に、必ず `aws sts get-caller-identity --profile <profile>` でSSOセッションがアクティブか確認すること。
 - **CloudWatch Logs の調査**: CloudWatch MCP サーバー（`awslabs-cloudwatch-mcp-server`）を優先して使う。MCP が disconnected で利用できない場合は Bash で `aws logs` コマンドを使ってよいが、**コマンドは必ず `aws` で始め、1コマンド1呼び出し、コメント `#` や `sleep` を先頭に付けない**こと（複数行コマンドは自動承認パターンにマッチせず手動承認になるため）。ログ調査をサブエージェントに委任する場合は `app-test-debug-agent` や `general-purpose` など MCP アクセス可能なエージェントを使う。
 
+# リポジトリ構成（~/git 配下）
+
+作業ディレクトリ `~/git` にはOrg別に2つのディレクトリがある。
+特定プロジェクトで作業中でも、絶対パスで他リポジトリを参照できる。
+
+## minorun365/（個人Org）
+- `qiita-minorun365/` : Qiita技術ブログ
+- `blog/` : Qiita以外の媒体へのブログ執筆・寄稿
+- `hands-on/` : ハンズオン教材
+- `connpass/` : イベント関連
+- `marp-agent/` : Marpスライド自動生成エージェント
+- `my-claude-code-settings/` : Claude Code設定の同期リポジトリ
+
+## mi-onda/（会社Org）
+- `marp-slides/` : Marpスライド（登壇・発表資料）
+- `marp-agent/` : Marpスライド生成エージェント
+
+## よくあるクロスリポジトリ参照
+- `minorun365/qiita-minorun365/` のブログ記事を参考に `mi-onda/marp-slides/` の登壇資料を作成
+- `minorun365/marp-agent/` の実装を参考に新しいAIエージェントのWebアプリを開発
+- 複数リポジトリの実装パターンを横断的に参照するケースが多い
+
 # Claude Code関連
 - コンテキスト節約のため、調査やデバッグにはサブエージェントを活用してください。
 - 開発中に生成するドキュメントにAPIキーなどの機密情報を書いてもいいけど、必ず .gitignore に追加して。
