@@ -783,3 +783,67 @@ const presigned = await signer.presign(request, { expiresIn: 300 });
 
 ### カスタム出力が反映されない
 - `backend.addOutput()` を追加後、sandbox再起動が必要
+
+### Runtime名バリデーションエラー
+
+**症状**: `[ValidationError] Runtime name must start with a letter and contain only letters, numbers, and underscores`
+
+**原因**: sandbox識別子（デフォルトでユーザー名）にハイフン等の禁止文字が含まれている（例: `mi-onda`）
+
+**解決策**: `backend.ts`でRuntime名をサニタイズ
+```typescript
+const backendName = agentCoreStack.node.tryGetContext('amplify-backend-name') as string;
+nameSuffix = (backendName || 'dev').replace(/[^a-zA-Z0-9_]/g, '_');
+```
+
+### S3バケット名: アンダースコア不可
+
+**症状**: `[ValidationError] Invalid S3 bucket name`（アンダースコア含む名前）
+
+**解決策**: バケット名生成時にアンダースコアをハイフンに変換
+```typescript
+const sanitizedSuffix = nameSuffix.replace(/_/g, '-').toLowerCase();
+```
+
+S3命名規則: 小文字(a-z)、数字(0-9)、ハイフン(`-`)、ピリオド(`.`)のみ。アンダースコア不可。
+
+### CDK DynamoDB: pointInTimeRecoverySpecification の型エラー
+
+**症状**: `Type 'boolean' is not assignable to type 'PointInTimeRecoverySpecification'`
+
+**原因**: aws-cdk-lib の最新版で型が `boolean` からオブジェクト型に変更
+
+**解決策**: PITRが不要ならプロパティ自体を削除（デフォルトで無効）
+
+### Amplify Console: SCP拒否エラー（Projectタグ必須環境）
+
+**症状**: `lambda:CreateFunction ... with an explicit deny in a service control policy`
+
+**原因**: スタック単位のタグはAmplify自動生成リソースに付かない
+
+**解決策**: **CDK Appレベル**でタグを付与
+```typescript
+const app = cdk.App.of(agentCoreStack);
+if (app) {
+  cdk.Tags.of(app).add('Project', 'your-project-tag');
+}
+```
+
+### Cognito Migration Trigger: Lambdaが発火しない
+
+**症状**: Migration Lambda設定済みだが、サインイン時に発火しない
+
+**原因**: Amplify UIの`<Authenticator>`はデフォルトで`USER_SRP_AUTH`。SRPではMigration Triggerにパスワードが渡されない
+
+**解決策**: `services` propで`USER_PASSWORD_AUTH`を使用（移行完了後は戻すこと）
+```tsx
+<Authenticator services={{
+  handleSignIn: (input) => signIn({...input, options: { authFlowType: 'USER_PASSWORD_AUTH' }}),
+}}>
+```
+
+### AgentCore S3バケット: grantRead だけでは書き込み不可
+
+**症状**: S3アップロードで「AccessDenied」
+
+**解決策**: `bucket.grantReadWrite(runtime)` を使用（`grantRead` では書き込み不可）

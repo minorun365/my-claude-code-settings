@@ -67,13 +67,20 @@
 | スキル | 内容 |
 |--------|------|
 | `/kb-strands-agentcore` | Strands Agents + Bedrock AgentCore（エージェント開発、CDK、Observability） |
+| `/kb-agentcore-identity` | AgentCore Identity（アウトバウンド認証、3LO、M2M） |
+| `/kb-bidi-agent` | BidiAgent（双方向ストリーミング、Nova Sonic音声対話、WebSocket） |
 | `/kb-kimi` | Kimi K2（Moonshot AI）特有の問題・ワークアラウンド |
 | `/kb-amplify-cdk` | Amplify Gen2 + CDK（sandbox、本番デプロイ、Hotswap） |
-| `/kb-frontend` | フロントエンド（React、Tailwind、SSE、Amplify UI） |
+| `/kb-frontend` | フロントエンド（React、Tailwind、ステータス管理、モバイルUI） |
+| `/kb-frontend-sse` | SSEストリーミング処理（基本パターン、タイムアウト、リトライ、モック） |
+| `/kb-frontend-amplify-ui` | Amplify UI React（Authenticator、日本語化、配色カスタマイズ） |
+| `/kb-web-audio` | Web Audio API / WebSocket / 音声対話UI（PCM再生、マイク入力） |
 | `/kb-marp` | Marp（スライド生成、テーマ、iOS対応、PDF/PPTX生成） |
 | `/kb-line` | LINE Bot開発（Messaging API、Webhook、署名検証、Push Message、グループチャット対応） |
 | `/kb-aws-diagrams` | AWS Diagram MCP Server（アーキテクチャ図、カスタムアイコン、レイアウト調整） |
-| `/kb-troubleshooting` | トラブルシューティング集（AWS、フロントエンド、Python、LLMアプリ）|
+| `/kb-ts-aws` | AWSトラブルシューティング（Cognito、AgentCore、Bedrock、Amplify、CloudWatch） |
+| `/kb-ts-frontend` | フロントエンドトラブルシューティング（Web Audio、Tailwind、OGP、React、SSE） |
+| `/kb-ts-llm-app` | LLMアプリトラブルシューティング（ストリーミング、Tavily、LINE、音声） |
 | `/sync-gdocs` | Google Docs 原稿を rclone + AI整形で authoring/ に同期 |
 
 プロジェクト固有でない汎用的な学びを得たら `/sync-knowledge` で追記する。
