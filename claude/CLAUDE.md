@@ -43,7 +43,7 @@
 
 ## mi-onda/（会社Org）
 - `marp-slides/` : Marpスライド（登壇・発表資料）
-- `marp-agent/` : Marpスライド生成エージェント
+- `marp-agent-kag/` : Marpスライド生成エージェント（自社テンプレ版）
 
 ## よくあるクロスリポジトリ参照
 - `minorun365/qiita-minorun365/` のブログ記事を参考に `mi-onda/marp-slides/` の登壇資料を作成
