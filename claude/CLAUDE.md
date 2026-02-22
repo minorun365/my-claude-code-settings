@@ -28,6 +28,13 @@
 - AWS CLIコマンドやスクリプトを実行する前に、必ず `aws sts get-caller-identity --profile <profile>` でSSOセッションがアクティブか確認すること。
 - **CloudWatch Logs の調査**: CloudWatch MCP サーバー（`awslabs-cloudwatch-mcp-server`）を優先して使う。MCP が disconnected で利用できない場合は Bash で `aws logs` コマンドを使ってよいが、**コマンドは必ず `aws` で始め、1コマンド1呼び出し、コメント `#` や `sleep` を先頭に付けない**こと（複数行コマンドは自動承認パターンにマッチせず手動承認になるため）。ログ調査をサブエージェントに委任する場合は `app-test-debug-agent` や `general-purpose` など MCP アクセス可能なエージェントを使う。
 
+# rclone / Google Drive
+- rclone のリモートは2つある。コマンド実行前に必ずどちらのアカウントを使うかみのるんに確認すること：
+  - `gdrive-personal:` → 個人用 Google アカウント
+  - `gdrive-work:` → 仕事用 Google アカウント
+- 認証が切れている場合は `rclone config reconnect <リモート名>` で再認証を案内する
+- リモート名を省略・間違えないよう注意（旧名 `gdrive:` は廃止済み）
+
 # リポジトリ構成（~/git 配下）
 
 作業ディレクトリ `~/git` にはOrg別に2つのディレクトリがある。
