@@ -52,7 +52,14 @@
       "mcp__aws-iac-mcp-server__search_cloudformation_documentation",
       "mcp__aws-iac-mcp-server__search_cdk_samples_and_constructs",
       "mcp__aws-iac-mcp-server__read_iac_documentation_page",
-      "mcp__aws-iac-mcp-server__cdk_best_practices"
+      "mcp__aws-iac-mcp-server__cdk_best_practices",
+      "Bash(diff *)",
+      "Bash(rsync *)",
+      "Bash(cp ~/.claude/*)",
+      "Bash(cp ~/git/minorun365/my-claude-code-settings/*)",
+      "Bash(jq *)",
+      "Bash(mv /tmp/*)",
+      "Bash(cd ~/git/minorun365/my-claude-code-settings*)"
     ],
     "defaultMode": "default",
     "additionalDirectories": [
