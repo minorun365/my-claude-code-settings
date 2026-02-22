@@ -47,6 +47,7 @@
 - `connpass/` : イベント関連
 - `marp-agent/` : Marpスライド自動生成エージェント
 - `my-claude-code-settings/` : Claude Code設定の同期リポジトリ
+- `dotfiles/` : Zsh設定ファイル（dotfiles）のバックアップ＆端末間同期
 
 ## mi-onda/（会社Org）
 - `marp-slides/` : Marpスライド（登壇・発表資料）
@@ -88,6 +89,7 @@
 | `/kb-ts-aws` | AWSトラブルシューティング（Cognito、AgentCore、Bedrock、Amplify、CloudWatch） |
 | `/kb-ts-frontend` | フロントエンドトラブルシューティング（Web Audio、Tailwind、OGP、React、SSE） |
 | `/kb-ts-llm-app` | LLMアプリトラブルシューティング（ストリーミング、Tavily、LINE、音声） |
+| `/sync-dotfiles` | dotfiles（Zsh設定）のGitHub⇔ローカル双方向同期 |
 | `/sync-gdocs` | Google Docs 原稿を rclone + AI整形で authoring/ に同期 |
 
 プロジェクト固有でない汎用的な学びを得たら `/sync-knowledge` で追記する。

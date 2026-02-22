@@ -428,6 +428,22 @@ SlidingWindowConversationManager(window_size=10, per_turn=True)
 SlidingWindowConversationManager(window_size=10, per_turn=5)
 ```
 
+#### ⚠️ per_turn=True と並列ツール実行の非互換性
+
+**`per_turn=True` は、エージェントが複数ツールを並列発行するユースケースでは使用禁止。**
+
+Strands Agents は並列ツール（例: `web_search` ×2）の結果を1件ずつ個別にセッション履歴に追加する。`per_turn=True` だと各LLMコール前にトリミングが走り、以下の正のフィードバックループが発生する：
+
+1. LLMが `web_search` ×2 を並列発行
+2. ツール結果1件目が履歴に追加 → トリミング発生
+3. 「検索結果が1件しかない」状態でLLMが呼ばれる
+4. LLMは「情報不足」と判断して追加の `web_search` を発行
+5. 1〜4が連鎖 → 1セッションで web_search が16〜20回に増殖
+
+さらに `output_slide` 等のツール結果が "The tool result was too large!" に圧縮され、ツールの正常動作も阻害される。
+
+**推奨**: `per_turn=False`（デフォルト）のまま使用し、コスト削減はツール結果のサイズ制限（要約等）で対応する。
+
 #### window_size チューニングの考え方
 
 - フロントエンドが毎回最新コンテキスト（例: 生成済みMarkdown）を送信する設計なら、古い履歴は不要 → 小さい window_size でOK
@@ -784,6 +800,95 @@ filter @message like /strands.event_loop.input.tokens/
 
 1. CloudWatch Console → **Bedrock AgentCore GenAI Observability**
 2. Agents View / Sessions View / Traces View で確認可能
+3. トレースの確認画面は **CloudWatchコンソール側**。AgentCoreコンソールではない点に注意
+
+### ローカル開発でのトレース確認（コンソールエクスポーター）
+
+Runtime にデプロイせずにローカルでトレースを確認するには、`StrandsTelemetry` のコンソールエクスポーターを使う。
+
+```python
+from strands import Agent
+from strands.telemetry import StrandsTelemetry
+
+# トレースのコンソール出力を有効化（1行）
+StrandsTelemetry().setup_console_exporter()
+
+agent = Agent()
+response = agent("こんにちは")
+```
+
+出力されるスパン階層:
+```
+invoke_agent Strands Agents    ← Agent Span（エージェント全体）
+  └─ execute_event_loop_cycle  ← Cycle Span（推論サイクル）
+       ├─ chat                 ← Model Invoke Span（LLM呼び出し）
+       └─ execute_tool xxx     ← Tool Span（ツール呼び出し）
+```
+
+各スパンに付与される主要属性:
+- `gen_ai.usage.prompt_tokens` / `gen_ai.usage.completion_tokens`
+- `gen_ai.server.time_to_first_token`（ms）
+- `gen_ai.request.model`
+
+**注意**: ローカルから CloudWatch X-Ray への直接送信は非推奨。ADOT 自動計装で SigV4 署名付き POST が成功（200 OK）しても、Runtime 環境外からのトレースは `aws/spans` に記録されない。ローカル開発ではコンソールエクスポーターを使うこと。
+
+### StrandsTelemetry API
+
+```python
+from strands.telemetry import StrandsTelemetry
+
+t = StrandsTelemetry()
+t.setup_console_exporter()     # コンソール出力（ローカル開発用）
+t.setup_otlp_exporter(**kw)    # OTLPエンドポイントに送信（Langfuse等）
+t.setup_meter(                 # メトリクス有効化
+    enable_console_exporter=True,
+    enable_otlp_exporter=True,
+)
+# メソッドチェーン可: t.setup_otlp_exporter().setup_console_exporter()
+```
+
+`setup_otlp_exporter` の kwargs は `OTLPSpanExporter` にそのまま渡される:
+- `endpoint`: OTLPエンドポイントURL
+- `headers`: 認証ヘッダー等
+
+### Langfuse連携（サードパーティOTEL送信）
+
+OTELベースなので、CloudWatch以外のバックエンドにもトレースを送信可能。Langfuseとの連携例:
+
+```python
+import base64
+import os
+
+from dotenv import load_dotenv
+from strands import Agent
+from strands.telemetry import StrandsTelemetry
+
+load_dotenv()
+
+LANGFUSE_PUBLIC_KEY = os.environ["LANGFUSE_PUBLIC_KEY"]
+LANGFUSE_SECRET_KEY = os.environ["LANGFUSE_SECRET_KEY"]
+LANGFUSE_HOST = os.environ.get("LANGFUSE_HOST", "https://cloud.langfuse.com")
+
+# OTLPエクスポーターの認証ヘッダーを生成（HTTP Basic認証）
+auth = base64.b64encode(
+    f"{LANGFUSE_PUBLIC_KEY}:{LANGFUSE_SECRET_KEY}".encode()
+).decode()
+
+# Langfuseにトレースを送信
+StrandsTelemetry().setup_otlp_exporter(
+    endpoint=f"{LANGFUSE_HOST}/api/public/otel/v1/traces",
+    headers={"Authorization": f"Basic {auth}"},
+)
+
+agent = Agent()
+response = agent("こんにちは")
+```
+
+**ポイント**:
+- Langfuse Cloud の Hobby プラン（無料）で動作確認済み
+- トレース名 `invoke_agent Strands Agents` として記録される
+- トークンコストの自動計算まで動作する
+- AgentCore Runtime にデプロイする場合は `DISABLE_ADOT_OBSERVABILITY=True` 環境変数で ADOT を無効化する必要あり（競合防止）
 
 ---
 

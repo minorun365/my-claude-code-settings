@@ -230,6 +230,26 @@ agentcore.create_gateway(
    # TransactionSearchXRayAccess ポリシーが存在すること
    ```
 
+## AgentCore Observability: ローカルから CloudWatch X-Ray へトレースが送信できない
+
+**症状**: ADOT 自動計装（`opentelemetry-instrument`）でローカルから X-Ray OTLP エンドポイントにトレースを POST すると 200 OK が返るが、`aws/spans` ロググループや `get-trace-summaries` にトレースが現れない
+
+**環境**:
+- `OTLPAwsSpanExporter`（SigV4署名付き）で `https://xray.us-east-1.amazonaws.com/v1/traces` に送信
+- Transaction Search は有効化済み（`ACTIVE` / `CloudWatchLogs`）
+- X-Ray → CloudWatch Logs のリソースポリシーも設定済み
+
+**原因**: Runtime 環境でのみ自動設定されるリソース属性（`cloud.platform: aws_bedrock_agentcore`、`cloud.resource_id`、`deployment.environment.name` 等）がないと、X-Ray / Transaction Search がトレースを GenAI Observability に記録しない可能性が高い
+
+**対処法**: ローカル開発ではコンソールエクスポーターを使う（CloudWatch への送信は Runtime デプロイ時に自動で行われる）
+
+```python
+from strands.telemetry import StrandsTelemetry
+StrandsTelemetry().setup_console_exporter()
+```
+
+**補足**: メトリクス（EMF形式）は `OTEL_EXPORTER_OTLP_LOGS_HEADERS` を設定すればローカルからでも CloudWatch Logs に正常に送信される。影響を受けるのはトレース（X-Ray スパン）のエクスポートのみ。
+
 ## S3 Vectors: Filterable metadata must have at most 2048 bytes
 
 **症状**: Knowledge BaseのSync時にエラー `Filterable metadata must have at most 2048 bytes`
