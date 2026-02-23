@@ -324,17 +324,41 @@ aws amplify update-app \
   --iam-service-role-arn arn:aws:iam::ACCOUNT_ID:role/AmplifyServiceRole-myapp
 ```
 
-## Amplify Console: Dockerビルドができない
+## Amplify Console: Dockerビルドができない / CDKAssetPublishError
 
-**症状**: `Unable to execute 'docker' in order to build a container asset`
+**症状パターン**:
 
-**原因**: デフォルトビルドイメージにDockerが含まれていない
+| パターン | エラーメッセージ |
+|---------|----------------|
+| Docker 未搭載 | `Unable to execute 'docker' in order to build a container asset` |
+| Docker 未搭載（抽象的） | `[CDKAssetPublishError] CDK failed to publish assets` |
+| Docker Hub レートリミット | `429 Too Many Requests: You have reached your unauthenticated pull rate limit` |
 
-**解決策**: カスタムビルドイメージを設定
+**重要**: `CDKAssetPublishError` は Docker 未搭載が原因でも出る。`--debug` フラグなしでは真の原因が見えないことがある。
 
-1. Amplify Console → Build settings → Build image settings → Edit
-2. Build image → Custom Build Image を選択
-3. イメージ名: `public.ecr.aws/codebuild/amazonlinux-x86_64-standard:5.0`
+```yaml
+# デバッグ: amplify.yml で --debug を付ける
+- npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID --debug
+```
+
+**解決策**:
+
+1. **推奨: `deploy-time-build` を使って CodeBuild に Docker ビルドを委譲する**
+   - Amplify のビルドイメージを変更する必要がない
+   - `/kb-amplify-cdk` の `deploy-time-build` セクションを参照
+
+2. **代替: カスタムビルドイメージを設定**
+   - Amplify Console → Build settings → Build image settings → Edit
+   - Build image → Custom Build Image を選択
+   - イメージ名: `public.ecr.aws/codebuild/amazonlinux-x86_64-standard:5.0`
+
+3. **Docker Hub レートリミット対策: Dockerfile のベースイメージを ECR Public に変更**
+   ```dockerfile
+   # NG: Docker Hub → 429 Too Many Requests
+   FROM python:3.13-slim
+   # OK: ECR Public → レートリミットなし
+   FROM public.ecr.aws/docker/library/python:3.13-slim-bookworm
+   ```
 
 ## AgentCore WebSocket: JWT 認証が使えない
 
@@ -375,16 +399,100 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 ```
 
-## uv: AWS認証エラー
+## aws login コマンド（v2.32.0〜）
 
-**症状**: `aws login`で認証したのにBoto3でエラー
+### 概要
 
-**原因**: `botocore[crt]`が不足
+AWS CLI v2.32.0（2025年11月）で追加された新しい認証方式。コンソール認証情報（ルートユーザー・IAMユーザー・フェデレーションID）を使い、ブラウザ経由でCLIにログインする。長期アクセスキーの作成・管理が不要になる。
 
-**解決策**:
+### `aws login` vs `aws sso login` の使い分け
+
+| 観点 | `aws login` | `aws sso login` |
+|------|-------------|-----------------|
+| 対象 | コンソール認証情報（root / IAMユーザー / フェデレーション） | IAM Identity Center（旧AWS SSO） |
+| 向いているケース | 個人アカウント、素早いプロトタイピング | 企業・組織で複数アカウントを管理 |
+| 事前設定 | ほぼ不要（ブラウザで完結） | `aws configure sso` で設定が必要 |
+| 設定キー | `login_session = arn:aws:iam::...` | `sso_start_url`, `sso_account_id` 等 |
+| キャッシュ | `~/.aws/login/cache` | `~/.aws/sso/cache` |
+| 一時認証情報 | 15分ごとに自動リフレッシュ、最大12時間 | セッション有効期間内 |
+
+**判断基準**: IAM Identity Centerで複数アカウントを管理しているなら `aws sso login` を継続。個人アカウントで手軽に始めたいなら `aws login` が便利。
+
+### 基本操作
+
 ```bash
+aws login                          # デフォルトプロファイルでログイン
+aws login --profile personal       # 名前付きプロファイルでログイン
+aws login --remote                 # ブラウザなし環境（コードを手動入力）
+aws logout                         # ログアウト
+aws logout --all                   # すべてのプロファイルからログアウト
+```
+
+### 設定例（`~/.aws/config`）
+
+```ini
+# aws login 用（個人アカウント）
+[profile personal]
+login_session = arn:aws:iam::111111111111:user/myuser
+region = us-east-1
+
+# aws sso login 用（組織アカウント）は従来通り
+[profile work]
+sso_start_url = https://myorg.awsapps.com/start
+sso_account_id = 222222222222
+sso_role_name = DeveloperAccess
+region = ap-northeast-1
+```
+
+### IAM権限の前提条件
+
+- **ルートユーザー**: 追加権限不要
+- **IAMユーザー**: `SignInLocalDevelopmentAccess` マネージドポリシーのアタッチが必要
+
+### はまりどころ
+
+#### 1. AWS CRT ライブラリが必須（Python SDK）
+
+Boto3/botocore で `aws login` の認証情報を使うには **AWS CRT（Common Runtime）が必須**。デフォルトでは含まれていない。
+
+```bash
+# pip の場合
+pip install "botocore[crt]"
+
+# uv の場合
 uv add 'botocore[crt]'
 ```
+
+Strands Agents SDK も Boto3 に依存しているため、CRT未インストールだと `aws login` 認証情報が使えない。
+
+#### 2. 古いアクセスキーが優先される（重大）
+
+`~/.aws/credentials` に長期アクセスキーが残っていると、`aws login` でログインしていてもアクセスキーが優先される。意図しないアカウントが操作されるリスクがあるため、移行時は古いキーを削除する。
+
+#### 3. Amplify Gen2 (`ampx`) の互換性
+
+- リリース当初は `npx ampx sandbox` が `aws login` 認証情報を認識できず `Failed to load default AWS credentials` エラー
+- **`@aws-amplify/backend-cli` v1.8.1 以降で修正済み** → `npm update @aws-amplify/backend-cli`
+
+#### 4. Terraform の互換性（Go SDK）
+
+Terraform の Go SDK は `login_session` を未サポート（2026年1月時点でオープンIssueあり）。回避策として `credential_process` を使用：
+
+```ini
+[profile dev]
+role_arn = arn:aws:iam::123456789012:role/MyRole
+credential_process = aws configure export-credentials --profile default --format process
+```
+
+### トラブルシューティング
+
+| エラー / 症状 | 原因 | 解決策 |
+|-------------|------|--------|
+| Boto3 で認証情報を読み込めない | CRT 未インストール | `pip install "botocore[crt]"` |
+| `ExpiredToken` / 意図しないアカウント | 古いアクセスキーが優先 | `~/.aws/credentials` の古いキーを削除 |
+| `Failed to load default AWS credentials` (ampx) | Amplify CLI が古い | `npm update @aws-amplify/backend-cli`（v1.8.1+） |
+| Terraform で `only one credential type` | Go SDK 未対応 | `credential_process` で回避 |
+| ブラウザが開かない | SSH 接続先等 | `aws login --remote` を使用 |
 
 ## デバッグTips
 

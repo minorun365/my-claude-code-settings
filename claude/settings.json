@@ -59,7 +59,15 @@
       "Bash(rm -rf /tmp/sync-gdocs*)",
       "Bash(mkdir -p /tmp/sync-gdocs*)",
       "Bash(cp /tmp/sync-gdocs*)",
-      "Bash(python3 /tmp/sync-gdocs*)"
+      "Bash(python3 /tmp/sync-gdocs*)",
+      "Bash(rsync *)",
+      "Bash(cp ~/.claude/*)",
+      "Bash(cp ~/git/minorun365/dotfiles/*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git commit *)",
+      "Bash(git push*)",
+      "Bash(git pull*)"
     ],
     "defaultMode": "default",
     "additionalDirectories": [

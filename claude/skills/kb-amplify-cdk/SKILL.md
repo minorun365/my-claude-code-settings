@@ -148,6 +148,58 @@ Amplify Console → **Environment variables** で設定:
 - APIキー等の機密情報はここで設定
 - CDKのビルド時に参照可能
 
+### amplify.yml カスタマイズ時の注意
+
+`amplify.yml` をカスタマイズすると、デフォルトの `npm install` が自動実行されなくなる。`preBuild` で `npm ci` を明示的に実行する必要がある。
+
+```yaml
+version: 1
+backend:
+  phases:
+    preBuild:
+      commands:
+        - npm ci  # カスタムamplify.ymlでは自動実行されないため明示必須
+    build:
+      commands:
+        - npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID
+frontend:
+  phases:
+    build:
+      commands:
+        - npm ci
+        - npm run build
+  artifacts:
+    baseDirectory: dist
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*
+```
+
+### デプロイ失敗時のデバッグ
+
+`ampx pipeline-deploy` に `--debug` を付けると詳細なエラーログが出力される。特に `CDKAssetPublishError` のような抽象的なエラーの真の原因を特定するのに有効。
+
+```yaml
+# デバッグ時のみ使用
+- npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID --debug
+```
+
+### Dockerfile ベースイメージ: ECR Public を使う
+
+`deploy-time-build` の CodeBuild から Docker Hub にイメージを pull すると、未認証扱いになりレートリミット（100 pulls/6h）に引っかかる。**ECR Public Gallery を使えばレートリミットなし。**
+
+```dockerfile
+# NG: Docker Hub → レートリミットで 429 Too Many Requests
+FROM python:3.13-slim
+
+# OK: ECR Public → レートリミットなし
+FROM public.ecr.aws/docker/library/python:3.13-slim-bookworm
+```
+
+Docker Hub の公式イメージはほぼすべて `public.ecr.aws/docker/library/` にミラーされている。
+
 ## CDK Hotswap
 
 - CDK v1.14.0〜 で Bedrock AgentCore Runtime に対応

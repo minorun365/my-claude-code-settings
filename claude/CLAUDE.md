@@ -12,7 +12,7 @@
 
 ### プロジェクトスコープの個人設定（PC別にセットアップが必要）
 
-以下のファイルは `/sync-settings` の同期対象外のため、各PCで個別に設定する。
+以下のファイルは `/sync-claude-code-settings` の同期対象外のため、各PCで個別に設定する。
 ホームディレクトリで作業する際に読み込まれ、AWSプロファイル等の個人情報を安全に管理できる。
 
 - **設定ファイル**: `~/.claude/projects/-Users-<ユーザー名>/CLAUDE.md`
@@ -46,15 +46,15 @@
 - `hands-on/` : ハンズオン教材
 - `connpass/` : イベント関連
 - `marp-agent/` : Marpスライド自動生成エージェント
-- `my-claude-code-settings/` : Claude Code設定の同期リポジトリ
-- `dotfiles/` : Zsh設定ファイル（dotfiles）のバックアップ＆端末間同期
+- `my-claude-code-settings/` : Claude Code設定の公開リポジトリ（知見共有用）
+- `dotfiles/` : 開発環境設定（Zsh + Claude Code）のプライベート同期リポジトリ
 
 ## mi-onda/（会社Org）
-- `marp-slides/` : Marpスライド（登壇・発表資料）
+- `marp-slides-kag/` : Marpスライド（案件・社内向け、KAGテーマ）
 - `marp-agent-kag/` : Marpスライド生成エージェント（自社テンプレ版）
 
 ## よくあるクロスリポジトリ参照
-- `minorun365/qiita-minorun365/` のブログ記事を参考に `mi-onda/marp-slides/` の登壇資料を作成
+- `minorun365/qiita-minorun365/` のブログ記事を参考に `minorun365/marp-slides/` の登壇資料を作成
 - `minorun365/marp-agent/` の実装を参考に新しいAIエージェントのWebアプリを開発
 - 複数リポジトリの実装パターンを横断的に参照するケースが多い
 
@@ -89,7 +89,8 @@
 | `/kb-ts-aws` | AWSトラブルシューティング（Cognito、AgentCore、Bedrock、Amplify、CloudWatch） |
 | `/kb-ts-frontend` | フロントエンドトラブルシューティング（Web Audio、Tailwind、OGP、React、SSE） |
 | `/kb-ts-llm-app` | LLMアプリトラブルシューティング（ストリーミング、Tavily、LINE、音声） |
-| `/sync-dotfiles` | dotfiles（Zsh設定）のGitHub⇔ローカル双方向同期 |
+| `/sync-dotfiles` | dotfiles（Zsh・Git・Ghostty設定）のGitHub⇔ローカル双方向同期 + Claude Code設定への導線 |
+| `/sync-claude-code-settings` | Claude Code設定（skills、CLAUDE.md、mcpServers）のGitHub⇔ローカル双方向同期 |
 | `/sync-gdocs` | Google Docs 原稿を rclone + AI整形で authoring/ に同期 |
 
 プロジェクト固有でない汎用的な学びを得たら `/sync-knowledge` で追記する。
