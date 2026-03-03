@@ -141,33 +141,3 @@ if "rate limit" in error_str or "429" in error_str or "quota" in error_str or "u
 3. **バックエンドにログ追加**: エクスポート処理の開始・完了・失敗を `print()` で記録
 
 **教訓**: SSEで長時間処理を返す場合、処理中もkeep-aliveイベントを送信してコネクションを維持する
-
-## SlidingWindowConversationManager per_turn=True でツール呼び出しが暴走
-
-**症状**: `per_turn=True` に変更した直後から、`web_search` の呼び出し回数が異常に増加（通常2〜4回 → 16〜20回）。Tavily APIのレートリミットに抵触。`output_slide` で "The tool result was too large!" エラーも発生
-
-**原因**: Strands Agents の並列ツール実行と `per_turn=True` の非互換性。Strands は並列ツール結果を1件ずつ履歴に追加するが、`per_turn=True` だと各LLMコール前にトリミングが走り、ツール結果が部分的にしか見えない状態でLLMが呼ばれる。LLMが「情報不足」と判断して追加検索を発行する正のフィードバックループが発生
-
-**解決策**: `per_turn=False`（デフォルト）に戻す。1ターン内のトークン削減はツール結果のサイズ制限（Haiku要約等）で対応する
-
-**教訓**: Strands の内部実装（並列ツール結果の逐次追加）を理解した上で ConversationManager のオプションを選択する。`per_turn` はツールを直列でしか使わないシンプルなエージェント向け
-
-## http_request ツールのレスポンスがコンテキストを肥大化
-
-**症状**: セッション単価が平均の約2倍に上昇。特定セッションでinputトークンが69,728文字（約35,000トークン）に達する
-
-**原因**: `strands_tools` のビルトイン `http_request` がWebページ全文（15,000〜19,000文字）をツール結果として返す。その結果が `output_slide` のページあふれリトライで毎回LLMに再送信され、コンテキストが膨張
-
-**解決策**: カスタム `http_request` ラッパーを作成し、大きなレスポンス（5,000文字超）をClaude Haikuで要約してから返す。HTML→テキスト変換も実施。要約失敗時は切り詰めフォールバック
-
-```python
-@tool
-def http_request(url: str, method: str = "GET") -> str:
-    response = requests.request(method, url, timeout=30)
-    content = _html_to_text(response.text) if "text/html" in content_type else response.text
-    if len(content) > 5000:
-        content = _summarize_with_haiku(content[:50000])  # Haiku要約
-    return f"Status: {response.status_code}\n\n{content}"
-```
-
-**教訓**: ツール結果のサイズがコスト最適化の最大のレバー。サブエージェントによるWeb検索結果の要約は品質低下が大きいが、http_requestのWebページ要約は効果的（ノイズが多いため要約しても情報の質が維持される）
