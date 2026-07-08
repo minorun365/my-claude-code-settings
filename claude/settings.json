@@ -1,0 +1,110 @@
+{
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
+  "permissions": {
+    "allow": [
+      "Bash(*)",
+      "Edit(/.claude/skills/**)",
+      "Edit(~/.claude/skills/**)",
+      "Glob",
+      "Grep",
+      "LSP",
+      "Read",
+      "WebFetch",
+      "WebSearch",
+      "mcp__aws-mcp__*",
+      "mcp__chrome-devtools__*",
+      "mcp__context7__*",
+      "mcp__google-workspace__check_*",
+      "mcp__google-workspace__find_*",
+      "mcp__google-workspace__get_*",
+      "mcp__google-workspace__inspect_*",
+      "mcp__google-workspace__list_*",
+      "mcp__google-workspace__query_*",
+      "mcp__google-workspace__read_*",
+      "mcp__google-workspace__search_*",
+      "mcp__playwright__*",
+      "mcp__plugin_aws-agents_awsknowledge__*"
+    ],
+    "ask": [
+      "Bash(gh repo delete:*)",
+      "Bash(gh gist create:*)"
+    ],
+    "deny": [],
+    "additionalDirectories": [
+      "~/git/dotfiles",
+      "~/git/minorun365/my-claude-code-settings"
+    ]
+  },
+  "model": "claude-fable-5[1m]",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/check-outbound.sh"
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "afplay /System/Library/Sounds/Glass.aiff"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "afplay /System/Library/Sounds/Glass.aiff"
+          }
+        ]
+      }
+    ]
+  },
+  "enabledPlugins": {
+    "aws-core@agent-toolkit-for-aws": true,
+    "aws-agents@agent-toolkit-for-aws": true
+  },
+  "extraKnownMarketplaces": {
+    "agent-toolkit-for-aws": {
+      "source": {
+        "source": "github",
+        "repo": "aws/agent-toolkit-for-aws"
+      }
+    }
+  },
+  "outputStyle": "Explanatory",
+  "language": "日本語（明るく元気、絵文字あり）",
+  "spinnerVerbs": {
+    "mode": "replace",
+    "verbs": [
+      "モゾモゾ",
+      "ざわ…ざわ",
+      "もじもじ",
+      "うねうね",
+      "ピロピロピロ",
+      "うにょにょーん",
+      "ぱやぱや",
+      "はわわわ"
+    ]
+  },
+  "effortLevel": "xhigh",
+  "autoUpdatesChannel": "latest",
+  "theme": "light",
+  "remoteControlAtStartup": true,
+  "agentPushNotifEnabled": true,
+  "skipAutoPermissionPrompt": true,
+  "voiceEnabled": false
+}

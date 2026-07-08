@@ -1,0 +1,31 @@
+{
+  "mcpServers": {
+    "context7": {
+      "type": "http",
+      "url": "https://context7.liam.sh/mcp"
+    },
+    "google-workspace": {
+      "type": "stdio",
+      "command": "~/.local/bin/workspace-mcp",
+      "args": [
+        "--tool-tier",
+        "complete"
+      ],
+      "env": {
+        "GOOGLE_OAUTH_CLIENT_ID": "<MASKED>",
+        "GOOGLE_OAUTH_CLIENT_SECRET": "<MASKED>"
+      }
+    },
+    "chrome-devtools": {
+      "type": "stdio",
+      "command": "/opt/homebrew/bin/npx",
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@latest",
+        "--browserUrl",
+        "http://[::1]:9222"
+      ],
+      "env": {}
+    }
+  }
+}
