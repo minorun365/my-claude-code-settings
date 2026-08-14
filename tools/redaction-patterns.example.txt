@@ -1,0 +1,12 @@
+# check-public-safety.sh が読む検査パターンの書き方の例。
+#
+# このファイルをコピーして tools/redaction-patterns.local.txt を作る。
+# .local.txt は .gitignore 済み。実値はそちらへ書き、このファイルには書かない。
+#
+#   cp tools/redaction-patterns.example.txt tools/redaction-patterns.local.txt
+#
+# 1行1つの拡張正規表現（grep -E）。# 始まりと空行は無視される。
+
+# example-corp\.(com|co\.jp)
+# git\.internal\.example
+# projectfalcon|pjfalcon

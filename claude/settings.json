@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
+  "permissions": {
+    "allow": [
+      "Bash(*)",
+      "Edit(~/.claude/skills/**)",
+      "Glob",
+      "Grep",
+      "LSP",
+      "Read",
+      "WebFetch",
+      "WebSearch",
+      "mcp__aws-mcp__*",
+      "mcp__context7__*",
+      "mcp__plugin_aws-agents_awsknowledge__*"
+    ],
+    "deny": [],
+    "ask": [
+      "Bash(gh repo delete:*)",
+      "Bash(gh gist create:*)"
+    ],
+    "defaultMode": "auto",
+    "additionalDirectories": [
+      "~/git/dotfiles"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/check-outbound.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "enabledPlugins": {
+    "aws-core@agent-toolkit-for-aws": true,
+    "aws-agents@agent-toolkit-for-aws": true,
+    "slack@claude-plugins-official": true
+  },
+  "extraKnownMarketplaces": {
+    "agent-toolkit-for-aws": {
+      "source": {
+        "source": "github",
+        "repo": "aws/agent-toolkit-for-aws"
+      }
+    }
+  },
+  "outputStyle": "Explanatory",
+  "language": "日本語（明るく元気、絵文字あり）",
+  "spinnerVerbs": {
+    "mode": "replace",
+    "verbs": [
+      "モゾモゾ",
+      "ざわ…ざわ",
+      "もじもじ",
+      "うねうね",
+      "ピロピロピロ",
+      "うにょにょーん",
+      "ぱやぱや",
+      "はわわわ"
+    ]
+  },
+  "effortLevel": "high",
+  "autoUpdatesChannel": "latest",
+  "tui": "fullscreen",
+  "voice": {
+    "enabled": false
+  },
+  "skipWorkflowUsageWarning": true,
+  "theme": "light",
+  "remoteControlAtStartup": true,
+  "inputNeededNotifEnabled": true,
+  "agentPushNotifEnabled": true,
+  "skipAutoPermissionPrompt": true
+}

@@ -1,0 +1,10 @@
+.claude
+.DS_Store
+.env
+.env.*
+!.env.example
+*.log
+tmp/
+
+# 公開前検査の環境固有パターン（実値を含むため非公開）
+tools/redaction-patterns.local.txt
