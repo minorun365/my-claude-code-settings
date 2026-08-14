@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
+  "permissions": {
+    "allow": [
+      "Bash(*)",
+      "Edit(~/.claude/skills/**)",
+      "Glob",
+      "Grep",
+      "LSP",
+      "Read",
+      "WebFetch",
+      "WebSearch",
+      "mcp__aws-mcp__*",
+      "mcp__context7__*",
+      "mcp__plugin_aws-agents_awsknowledge__*"
+    ],
+    "deny": [
+      "mcp__claude.ai Asana__delete_task",
+      "mcp__claude.ai Figma__weave_run_tool",
+      "mcp__claude.ai Notion__notion-spawn-session",
+      "mcp__claude.ai Notion__notion-send-message-to-session"
+    ],
+    "ask": [
+      "Bash(gh repo delete:*)",
+      "Bash(gh gist create:*)",
+      "mcp__*__send_message",
+      "mcp__*__reply",
+      "mcp__*__forward",
+      "mcp__*__trash_message",
+      "mcp__*__trash_thread",
+      "mcp__*__mark_message_spam",
+      "mcp__*__mark_thread_spam",
+      "mcp__*__apply_sensitive_message_label",
+      "mcp__*__apply_sensitive_thread_label",
+      "mcp__*__delete_label",
+      "mcp__*__create_event",
+      "mcp__*__update_event",
+      "mcp__*__delete_event",
+      "mcp__*__share_file",
+      "mcp__*__update_file",
+      "mcp__*__trash_file",
+      "mcp__*__slack_send_message",
+      "mcp__*__slack_schedule_message",
+      "mcp__*__slack_update_canvas",
+      "mcp__*__notion-update-page",
+      "mcp__*__notion-update-data-source",
+      "mcp__*__notion-move-pages",
+      "mcp__*__notion-update-view",
+      "mcp__*__notion-create-comment",
+      "mcp__*__notion-create-attachment",
+      "mcp__*__notion-stop-session",
+      "mcp__*__notion-convert-page-to-skill",
+      "mcp__*__update_tasks",
+      "mcp__*__create_tasks",
+      "mcp__*__create_project",
+      "mcp__*__create_project_status_update",
+      "mcp__*__add_comment",
+      "mcp__*__use_figma",
+      "mcp__*__generate_figma_design",
+      "mcp__*__upload_assets",
+      "mcp__*__add_code_connect_map",
+      "mcp__*__send_code_connect_mappings",
+      "mcp__*__create_shader",
+      "mcp__*__update_shader",
+      "mcp__*__create_generative_plugin",
+      "mcp__*__update_generative_plugin",
+      "mcp__*__weave_cancel_tool_run",
+      "mcp__*__weave_upload_asset"
+    ],
+    "defaultMode": "auto",
+    "additionalDirectories": [
+      "~/git/dotfiles"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/check-outbound.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/japanese-guard.py"
+          }
+        ]
+      }
+    ]
+  },
+  "enabledPlugins": {
+    "aws-core@agent-toolkit-for-aws": true,
+    "aws-agents@agent-toolkit-for-aws": true,
+    "slack@claude-plugins-official": true
+  },
+  "extraKnownMarketplaces": {
+    "agent-toolkit-for-aws": {
+      "source": {
+        "source": "github",
+        "repo": "aws/agent-toolkit-for-aws"
+      }
+    }
+  },
+  "outputStyle": "Explanatory",
+  "language": "日本語（明るく元気、絵文字あり）",
+  "spinnerVerbs": {
+    "mode": "replace",
+    "verbs": [
+      "モゾモゾ",
+      "ざわ…ざわ",
+      "もじもじ",
+      "うねうね",
+      "ピロピロピロ",
+      "うにょにょーん",
+      "ぱやぱや",
+      "はわわわ"
+    ]
+  },
+  "effortLevel": "medium",
+  "autoUpdatesChannel": "latest",
+  "tui": "fullscreen",
+  "voice": {
+    "enabled": false
+  },
+  "skipWorkflowUsageWarning": true,
+  "theme": "light",
+  "remoteControlAtStartup": true,
+  "inputNeededNotifEnabled": true,
+  "agentPushNotifEnabled": true,
+  "skipAutoPermissionPrompt": true
+}
