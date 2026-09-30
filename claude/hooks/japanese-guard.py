@@ -4,6 +4,8 @@
 検査するのは、そのターンの最終回答だけ。つまり最後のツール呼び出しより後に Claude が書いた本文。
 ツールを呼ぶ前の途中の一言は、画面では実行ログの間に小さく出るだけなので対象にしない。
 ツールを1回も呼ばなかったターンは、本文すべてが最終回答になる。
+最終回答は hook の入力 last_assistant_message でも見る。transcript への書き込みが遅れても
+見逃さないため。入るのは最後の応答1件だけなので、transcript の判定も残して両方で見る。
 コードブロック・インラインコード・URL・メールアドレス・Markdown リンクは数えない。
 英語のコマンドや英文の下書きをコードブロックで見せるのは正当なため。
 
@@ -133,13 +135,22 @@ def main():
     data = json.load(sys.stdin)
     if data.get("stop_hook_active"):
         return
+    # 最終回答の本文は hook の入力 last_assistant_message にも入っている。transcript の書き込みを
+    # 待たずに判定でき、書き込みが遅れても見逃さない。入るのは最後の応答1件だけなので、
+    # 応答が分かれたときの前半は transcript 側で見る（issue #1）
+    message = data.get("last_assistant_message") or ""
+    message_en = bool(message) and is_english(message)
     path = data.get("transcript_path")
-    if not path:
-        return
-    try:
-        hits = english_passages(path, wait_for_final(path))
-    except OSError:
-        return
+    hits = []
+    if path:
+        try:
+            hits = english_passages(path, read_entries(path) if message_en else wait_for_final(path))
+        except OSError:
+            pass
+    if message_en:
+        head = message.strip().splitlines()[0][:80]
+        if head not in hits:
+            hits.append(head)
     if hits:
         quoted = "\n".join("- " + h for h in hits[:5])
         print(json.dumps({"decision": "block", "reason": REASON.format(quoted=quoted)}, ensure_ascii=False))
