@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
 """Claude Code の Stop hook。ターンの本文が英語主体なら、終了させずに日本語で書き直させる。
 
-検査するのは、そのターンの最終回答だけ。つまり最後のツール呼び出しより後に Claude が書いた本文。
-ツールを呼ぶ前の途中の一言は、画面では実行ログの間に小さく出るだけなので対象にしない。
-ツールを1回も呼ばなかったターンは、本文すべてが最終回答になる。
+検査するのは次の3つ。
+1. そのターンの最終回答。つまり最後のツール呼び出しより後に Claude が書いた本文。
+   ツールを1回も呼ばなかったターンは、本文すべてが最終回答になる。
+2. デスクトップアプリの「次の一手」の箱（wrap_up ツール）に出る recap・ask・ボタンの文言。
+   箱が最終回答の代わりになるターンでは、本文がほとんど残らず、1だけでは素通りする。
+3. ツール呼び出しの間の途中報告のうち、文として読める長さのもの（英字 MIN_LATIN_MID 以上）。
+   一言の前置きは画面で小さく出るだけなので対象にしない。数行の途中報告は本文と同じ大きさで出る。
+   途中報告は text ではなく thinking ブロック（thinkingDisplay が updates）として記録されることもある。
+wrap_up は PreToolUse hook としても同じ判定で止める。箱が英語のまま画面に出る前に差し戻すため。
 最終回答は hook の入力 last_assistant_message でも見る。transcript への書き込みが遅れても
 見逃さないため。入るのは最後の応答1件だけなので、transcript の判定も残して両方で見る。
 コードブロック・インラインコード・URL・メールアドレス・Markdown リンクは数えない。
@@ -23,6 +29,8 @@ import time
 
 # 英字がこれ未満の本文は判定しない（「OK」「Done」程度の短い返事は見逃す）
 MIN_LATIN = int(os.environ.get("JAPANESE_GUARD_MIN_LATIN", "25"))
+# ツール呼び出しの間の途中報告は、英字がこれ以上あるときだけ判定する
+MIN_LATIN_MID = int(os.environ.get("JAPANESE_GUARD_MIN_LATIN_MID", "60"))
 # 英字の数が日本語の文字数のこの倍を超えたら、英語主体とみなす
 RATIO = float(os.environ.get("JAPANESE_GUARD_RATIO", "3"))
 # 最終回答が transcript へ書き込まれるのを待つ上限（秒）
@@ -46,13 +54,43 @@ REASON = (
     "言い訳や原因の説明は書かず、以降の応答もすべて日本語で書くこと。"
 )
 
+WRAP_UP_REASON = (
+    "次の一手の箱（recap・ask・ボタンの文言）が英語です。ユーザーは日本語での応答を求めています。"
+    "すべて日本語で書き直して、もう一度呼んでください。"
+)
 
-def is_english(text):
+
+def is_english(text, min_latin=MIN_LATIN):
     for pattern in IGNORE:
         text = pattern.sub("", text)
     latin = len(LATIN.findall(text))
     ja = len(JA.findall(text))
-    return latin >= MIN_LATIN and latin > ja * RATIO
+    return latin >= min_latin and latin > ja * RATIO
+
+
+def is_wrap_up(name):
+    """デスクトップアプリの「次の一手」の箱を出すツールか（MCP ツールなので名前に接頭辞が付く）"""
+    return (name or "").endswith("wrap_up")
+
+
+def wrap_up_text(tool_input):
+    """次の一手の箱に出る文字列（recap・ask・ボタンの文言）を1つにまとめる"""
+    tool_input = tool_input or {}
+    parts = [tool_input.get("recap") or "", tool_input.get("ask") or ""]
+    actions = tool_input.get("actions")
+    if isinstance(actions, str):
+        try:
+            actions = json.loads(actions)
+        except ValueError:
+            actions = []
+    for action in actions or []:
+        if isinstance(action, dict):
+            parts += [action.get("label") or "", action.get("message") or ""]
+    return "\n".join(p for p in parts if p)
+
+
+def head(text, label=""):
+    return label + text.strip().splitlines()[0][:80]
 
 
 def is_user_turn(entry):
@@ -113,6 +151,7 @@ def english_passages(transcript_path, entries=None):
             start = i + 1
     # 最終回答＝最後のツール呼び出しより後の本文。ツール呼び出しが出るたびに集め直す
     final = []
+    hits = []
     for entry in entries[start:]:
         if entry.get("type") != "assistant":
             continue
@@ -120,10 +159,21 @@ def english_passages(transcript_path, entries=None):
             if not isinstance(block, dict):
                 continue
             if block.get("type") == "tool_use":
+                # 最終回答にならなかった本文は途中報告。長いものだけ見る
+                hits += [head(t, "（途中の報告）") for t in final if is_english(t, MIN_LATIN_MID)]
                 final = []
+                if is_wrap_up(block.get("name")):
+                    text = wrap_up_text(block.get("input"))
+                    if is_english(text):
+                        hits.append(head(text, "（次の一手の箱）"))
             elif block.get("type") == "text":
                 final.append(block.get("text", ""))
-    hits = [text.strip().splitlines()[0][:80] for text in final if is_english(text)]
+            elif block.get("type") == "thinking" and entry.get("thinkingDisplay") == "updates":
+                # thinkingDisplay が updates のとき、中身のある thinking は画面に途中報告として出る
+                text = block.get("thinking") or ""
+                if text.strip() and is_english(text, MIN_LATIN_MID):
+                    hits.append(head(text, "（途中の報告）"))
+    hits += [head(text) for text in final if is_english(text)]
     return hits
 
 
@@ -133,6 +183,14 @@ def main():
         print("\n".join(hits) if hits else "英語主体の本文はありません")
         return
     data = json.load(sys.stdin)
+    if data.get("hook_event_name") == "PreToolUse":
+        if is_wrap_up(data.get("tool_name")) and is_english(wrap_up_text(data.get("tool_input"))):
+            print(json.dumps({"hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "deny",
+                "permissionDecisionReason": WRAP_UP_REASON,
+            }}, ensure_ascii=False))
+        return
     if data.get("stop_hook_active"):
         return
     # 最終回答の本文は hook の入力 last_assistant_message にも入っている。transcript の書き込みを
@@ -148,9 +206,9 @@ def main():
         except OSError:
             pass
     if message_en:
-        head = message.strip().splitlines()[0][:80]
-        if head not in hits:
-            hits.append(head)
+        first = head(message)
+        if first not in hits:
+            hits.append(first)
     if hits:
         quoted = "\n".join("- " + h for h in hits[:5])
         print(json.dumps({"decision": "block", "reason": REASON.format(quoted=quoted)}, ensure_ascii=False))
