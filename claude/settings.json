@@ -137,6 +137,7 @@
     ]
   },
   "effortLevel": "medium",
+  "skillListingBudgetFraction": 0.02,
   "autoUpdatesChannel": "latest",
   "tui": "fullscreen",
   "voice": {
