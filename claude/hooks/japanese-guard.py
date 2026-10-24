@@ -6,8 +6,10 @@
    ツールを1回も呼ばなかったターンは、本文すべてが最終回答になる。
 2. デスクトップアプリの「次の一手」の箱（wrap_up ツール）に出る recap・ask・ボタンの文言。
    箱が最終回答の代わりになるターンでは、本文がほとんど残らず、1だけでは素通りする。
-3. ツール呼び出しの間の途中報告のうち、文として読める長さのもの（英字 MIN_LATIN_MID 以上）。
-   一言の前置きは画面で小さく出るだけなので対象にしない。数行の途中報告は本文と同じ大きさで出る。
+3. ツール呼び出しの間の途中報告のうち、読ませる量のあるもの。複数行なら英字 MIN_LATIN_MID 以上、
+   1行なら英字 MIN_LATIN_MID_LONG 以上を見る。ツールを呼ぶ前の1行の前置きは画面で小さく出るだけなので
+   対象にしない。差し戻すと、日本語の最終回答のあとに前置きだけを書き直す応答がもう1通出て、かえって
+   読みにくくなる。数行の途中報告は本文と同じ大きさで出るので見る。
    途中報告は text ではなく thinking ブロック（thinkingDisplay が updates）として記録されることもある。
 wrap_up は PreToolUse hook としても同じ判定で止める。箱が英語のまま画面に出る前に差し戻すため。
 最終回答は hook の入力 last_assistant_message でも見る。transcript への書き込みが遅れても
@@ -29,8 +31,10 @@ import time
 
 # 英字がこれ未満の本文は判定しない（「OK」「Done」程度の短い返事は見逃す）
 MIN_LATIN = int(os.environ.get("JAPANESE_GUARD_MIN_LATIN", "25"))
-# ツール呼び出しの間の途中報告は、英字がこれ以上あるときだけ判定する
+# ツール呼び出しの間の途中報告（複数行）は、英字がこれ以上あるときだけ判定する
 MIN_LATIN_MID = int(os.environ.get("JAPANESE_GUARD_MIN_LATIN_MID", "60"))
+# 1行の途中報告は、英字がこれ以上ある長い段落のときだけ判定する
+MIN_LATIN_MID_LONG = int(os.environ.get("JAPANESE_GUARD_MIN_LATIN_MID_LONG", "250"))
 # 英字の数が日本語の文字数のこの倍を超えたら、英語主体とみなす
 RATIO = float(os.environ.get("JAPANESE_GUARD_RATIO", "3"))
 # 最終回答が transcript へ書き込まれるのを待つ上限（秒）
@@ -66,6 +70,14 @@ def is_english(text, min_latin=MIN_LATIN):
     latin = len(LATIN.findall(text))
     ja = len(JA.findall(text))
     return latin >= min_latin and latin > ja * RATIO
+
+
+def is_mid_report_english(text):
+    """途中報告の判定。1行の前置きは見逃し、複数行か長い段落だけを見る"""
+    lines = [line for line in text.strip().splitlines() if line.strip()]
+    if len(lines) >= 2:
+        return is_english(text, MIN_LATIN_MID)
+    return is_english(text, MIN_LATIN_MID_LONG)
 
 
 def is_wrap_up(name):
@@ -160,7 +172,7 @@ def english_passages(transcript_path, entries=None):
                 continue
             if block.get("type") == "tool_use":
                 # 最終回答にならなかった本文は途中報告。長いものだけ見る
-                hits += [head(t, "（途中の報告）") for t in final if is_english(t, MIN_LATIN_MID)]
+                hits += [head(t, "（途中の報告）") for t in final if is_mid_report_english(t)]
                 final = []
                 if is_wrap_up(block.get("name")):
                     text = wrap_up_text(block.get("input"))
@@ -171,7 +183,7 @@ def english_passages(transcript_path, entries=None):
             elif block.get("type") == "thinking" and entry.get("thinkingDisplay") == "updates":
                 # thinkingDisplay が updates のとき、中身のある thinking は画面に途中報告として出る
                 text = block.get("thinking") or ""
-                if text.strip() and is_english(text, MIN_LATIN_MID):
+                if text.strip() and is_mid_report_english(text):
                     hits.append(head(text, "（途中の報告）"))
     hits += [head(text) for text in final if is_english(text)]
     return hits
