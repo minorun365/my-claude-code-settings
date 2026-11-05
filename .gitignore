@@ -1,0 +1,7 @@
+.claude
+.DS_Store
+.env
+.env.*
+!.env.example
+*.log
+tmp/

@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
+  "permissions": {
+    "allow": [
+      "Bash(*)",
+      "Glob",
+      "Grep",
+      "Read",
+      "WebFetch",
+      "WebSearch",
+      "mcp__context7__*"
+    ],
+    "ask": [
+      "Bash(gh repo delete:*)",
+      "Bash(gh gist create:*)",
+      "mcp__*__send_message",
+      "mcp__*__reply",
+      "mcp__*__forward",
+      "mcp__*__create_event",
+      "mcp__*__update_event",
+      "mcp__*__delete_event",
+      "mcp__*__share_file",
+      "mcp__*__trash_file",
+      "mcp__*__add_comment"
+    ],
+    "defaultMode": "auto"
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/check-outbound.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/japanese-guard.py"
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "~/.claude/statusline.py"
+  },
+  "outputStyle": "Explanatory",
+  "language": "日本語（明るく元気、絵文字あり）",
+  "spinnerVerbs": {
+    "mode": "replace",
+    "verbs": [
+      "モゾモゾ",
+      "ざわ…ざわ",
+      "もじもじ",
+      "うねうね",
+      "ピロピロピロ",
+      "うにょにょーん",
+      "ぱやぱや",
+      "はわわわ"
+    ]
+  },
+  "effortLevel": "medium",
+  "theme": "light"
+}
